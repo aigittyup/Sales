@@ -1,0 +1,25 @@
+date,product,region,channel,quantity,revenue
+2025-01-05,Widget A,North,Online,10,500.00
+2025-01-12,Widget B,South,Retail,5,375.00
+2025-01-18,Widget A,East,Online,8,400.00
+2025-01-25,Widget C,West,Retail,12,960.00
+2025-02-03,Widget B,North,Online,7,525.00
+2025-02-10,Widget A,South,Retail,15,750.00
+2025-02-17,Widget C,East,Online,6,480.00
+2025-02-22,Widget A,West,Retail,9,450.00
+2025-03-01,Widget B,North,Online,11,825.00
+2025-03-08,Widget C,South,Retail,4,320.00
+2025-03-15,Widget A,East,Online,20,1000.00
+2025-03-22,Widget B,West,Retail,8,600.00
+2025-04-02,Widget C,North,Online,14,1120.00
+2025-04-09,Widget A,South,Retail,6,300.00
+2025-04-18,Widget B,East,Online,10,750.00
+2025-04-25,Widget C,West,Retail,9,720.00
+2025-05-05,Widget A,North,Online,18,900.00
+2025-05-12,Widget B,South,Retail,7,525.00
+2025-05-19,Widget C,East,Online,11,880.00
+2025-05-28,Widget A,West,Retail,13,650.00
+2025-06-03,Widget B,North,Online,15,1125.00
+2025-06-10,Widget C,South,Retail,8,640.00
+2025-06-18,Widget A,East,Online,22,1100.00
+2025-06-25,Widget B,West,Retail,10,750.00
