@@ -62,6 +62,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 </head>
 <body>
     <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none">
+    <input type="file" id="plan-input" accept=".csv,.xlsx,.xls" style="display:none">
     <div class="status-toast" id="status-toast"></div>
     <div class="header">
         <div class="header-left">
@@ -74,6 +75,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <span class="last-refresh" id="last-refresh"></span>
                 <button class="header-btn" onclick="hardRefresh()">Refresh</button>
                 <button class="header-btn" onclick="document.getElementById('file-input').click()">Upload Data</button>
+                <button class="header-btn" onclick="document.getElementById('plan-input').click()">Upload Plan</button>
             </div>
         </div>
     </div>
@@ -93,11 +95,17 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <h2>Monthly Trend</h2>
                 <table id="trend-table"><thead><tr></tr></thead><tbody></tbody></table>
             </div>
+            <div class="section" id="plan-section" style="display:none;">
+                <h2>Plan vs Actual Comparison</h2>
+                <div class="cards" id="plan-cards" style="margin-bottom:16px;"></div>
+                <table id="plan-table"><thead><tr></tr></thead><tbody></tbody></table>
+            </div>
         </div>
     </div>
     <div class="footer">Powered by Amplify | Interstate Batteries</div>
     <script>
         const fileInput = document.getElementById('file-input');
+        const planInput = document.getElementById('plan-input');
         const toast = document.getElementById('status-toast');
 
         function showToast(msg, type) {
@@ -145,6 +153,30 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 showToast('Upload failed: ' + err.message, 'error');
             }
             fileInput.value = '';
+        });
+
+        planInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            showToast('Uploading plan: ' + file.name + '...', 'loading');
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const resp = await fetch('/api/upload-plan', { method: 'POST', body: formData });
+                const text = await resp.text();
+                let result;
+                try { result = JSON.parse(text); } catch(e) { showToast('Server returned invalid response', 'error'); planInput.value = ''; return; }
+                if (result.error) {
+                    showToast('Error: ' + result.error, 'error');
+                } else {
+                    showToast('Plan comparison complete!', 'success');
+                    renderReport(result);
+                    updateRefreshTime();
+                }
+            } catch (err) {
+                showToast('Plan upload failed: ' + err.message, 'error');
+            }
+            planInput.value = '';
         });
 
         function fmtVal(val, colName) {
@@ -236,6 +268,27 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             }
             trendSection.querySelector('h2').textContent = 'Monthly Trend';
             renderTable('trend-table', data.monthly_trend || []);
+
+            // Plan vs Actual
+            const planSection = document.getElementById('plan-section');
+            const planCards = document.getElementById('plan-cards');
+            if (data.plan_comparison && data.plan_comparison.summary) {
+                planSection.style.display = 'block';
+                const ps = data.plan_comparison.summary;
+                planCards.innerHTML = '';
+                const pCards = [
+                    { label: 'Plan Units', value: Number(ps.total_plan_units).toLocaleString(), sub: ps.months_compared + ' months' },
+                    { label: 'Actual Orders', value: Number(ps.total_actual_orders).toLocaleString(), sub: 'Gap: ' + Number(ps.order_gap).toLocaleString() },
+                    { label: 'Order Attainment', value: ps.order_attainment_pct + '%', sub: 'vs 100% target' },
+                    { label: 'Delivery Attainment', value: ps.delivery_attainment_pct + '%', sub: 'Delivered: ' + Number(ps.total_actual_delivered).toLocaleString() },
+                ];
+                pCards.forEach(c => {
+                    planCards.innerHTML += '<div class="card"><div class="label">' + c.label + '</div><div class="value">' + c.value + '</div><div class="sub">' + c.sub + '</div></div>';
+                });
+                renderTable('plan-table', data.plan_comparison.by_month || []);
+            } else {
+                planSection.style.display = 'none';
+            }
         }
 
         fetch('/api/report')
@@ -285,37 +338,36 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
             else:
                 self.send_error(404)
 
+        def _parse_upload(self):
+            """Parse a multipart file upload and return (file_data, file_ext)."""
+            content_type = self.headers.get("Content-Type", "")
+            if "multipart/form-data" not in content_type:
+                return None, None
+            boundary = content_type.split("boundary=")[1].encode()
+            content_length = int(self.headers["Content-Length"])
+            body = self.rfile.read(content_length)
+            parts = body.split(b"--" + boundary)
+            file_data = None
+            file_ext = ".csv"
+            for part in parts:
+                if b"Content-Disposition" not in part:
+                    continue
+                header_end = part.index(b"\r\n\r\n")
+                header = part[:header_end].decode(errors="replace")
+                data = part[header_end + 4:]
+                if data.endswith(b"\r\n"):
+                    data = data[:-2]
+                if 'name="file"' in header:
+                    file_data = data
+                    if 'filename="' in header:
+                        fname = header.split('filename="')[1].split('"')[0]
+                        file_ext = Path(fname).suffix or ".csv"
+            return file_data, file_ext
+
         def do_POST(self):
             if self.path == "/api/upload":
                 try:
-                    content_type = self.headers.get("Content-Type", "")
-                    if "multipart/form-data" not in content_type:
-                        self._json_response(400, {"error": "Expected multipart form data"})
-                        return
-
-                    boundary = content_type.split("boundary=")[1].encode()
-                    content_length = int(self.headers["Content-Length"])
-                    body = self.rfile.read(content_length)
-
-                    parts = body.split(b"--" + boundary)
-                    file_data = None
-                    file_ext = ".csv"
-
-                    for part in parts:
-                        if b"Content-Disposition" not in part:
-                            continue
-                        header_end = part.index(b"\r\n\r\n")
-                        header = part[:header_end].decode(errors="replace")
-                        data = part[header_end + 4:]
-                        if data.endswith(b"\r\n"):
-                            data = data[:-2]
-
-                        if 'name="file"' in header:
-                            file_data = data
-                            if 'filename="' in header:
-                                fname = header.split('filename="')[1].split('"')[0]
-                                file_ext = Path(fname).suffix or ".csv"
-
+                    file_data, file_ext = self._parse_upload()
                     if file_data is None:
                         self._json_response(400, {"error": "No file uploaded"})
                         return
@@ -330,6 +382,11 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
                         "-o", str(output_path),
                     ]
 
+                    # Include plan file if one was previously uploaded
+                    plan_path = output_path / "uploaded_plan.csv"
+                    if plan_path.exists():
+                        cmd.extend(["--plan-file", str(plan_path)])
+
                     result = subprocess.run(
                         cmd,
                         capture_output=True,
@@ -342,8 +399,56 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
                         self._json_response(500, {"error": result.stderr or result.stdout or "Analysis failed"})
                         return
 
-                    report_path = output_path / "sales_report.json"
-                    with open(report_path) as f:
+                    report_file = output_path / "sales_report.json"
+                    with open(report_file) as f:
+                        report = json.load(f)
+
+                    self._json_response(200, report)
+
+                except Exception as e:
+                    self._json_response(500, {"error": str(e)})
+
+            elif self.path == "/api/upload-plan":
+                try:
+                    file_data, file_ext = self._parse_upload()
+                    if file_data is None:
+                        self._json_response(400, {"error": "No plan file uploaded"})
+                        return
+
+                    plan_path = output_path / ("uploaded_plan" + file_ext)
+                    with open(plan_path, "wb") as f:
+                        f.write(file_data)
+
+                    # Re-run analysis with plan comparison if data file exists
+                    data_path = output_path / "uploaded_data.csv"
+                    if not data_path.exists():
+                        # Check for xlsx
+                        data_path = output_path / "uploaded_data.xlsx"
+                    if not data_path.exists():
+                        self._json_response(400, {"error": "Upload actuals data first, then upload the plan file"})
+                        return
+
+                    cmd = [
+                        sys.executable, "-m", "analysis_agent",
+                        str(data_path),
+                        "-o", str(output_path),
+                        "--plan-file", str(plan_path),
+                    ]
+
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        cwd=str(project_root),
+                    )
+
+                    if result.returncode != 0:
+                        self._json_response(500, {"error": result.stderr or result.stdout or "Analysis failed"})
+                        return
+
+                    report_file = output_path / "sales_report.json"
+                    with open(report_file) as f:
                         report = json.load(f)
 
                     self._json_response(200, report)

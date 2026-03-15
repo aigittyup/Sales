@@ -260,3 +260,121 @@ def plot_group_performance(by_group: pd.DataFrame, output_path: str) -> str:
     fig.savefig(filepath)
     plt.close(fig)
     return filepath
+
+
+# --- Plan vs Actual visualizations ---
+
+def plot_plan_vs_actual_trend(by_month: pd.DataFrame, output_path: str) -> str:
+    """Generate plan vs actual orders/delivered trend by month."""
+    setup_style()
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    months = by_month["month_str"]
+    x = range(len(months))
+    width = 0.25
+
+    if "plan_units" in by_month.columns:
+        ax.bar([i - width for i in x], by_month["plan_units"], width, label="AOP Plan", color="#90CAF9", edgecolor="#1565C0")
+    if "actual_orders" in by_month.columns:
+        ax.bar(x, by_month["actual_orders"], width, label="Actual Orders", color=IB_GREEN, edgecolor=IB_GREEN_DARK)
+    if "actual_delivered" in by_month.columns:
+        ax.bar([i + width for i in x], by_month["actual_delivered"], width, label="Actual Delivered", color="#FF9800", edgecolor="#E65100")
+
+    ax.set_title("Plan vs Actual: Monthly Comparison")
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Units")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(months, rotation=45, ha="right")
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.legend()
+    plt.tight_layout()
+
+    filepath = str(Path(output_path) / "plan_vs_actual_trend.png")
+    fig.savefig(filepath)
+    plt.close(fig)
+    return filepath
+
+
+def plot_attainment_trend(by_month: pd.DataFrame, output_path: str) -> str:
+    """Generate attainment % trend line by month."""
+    setup_style()
+    fig, ax = plt.subplots()
+
+    months = by_month["month_str"]
+
+    if "order_attainment_pct" in by_month.columns:
+        ax.plot(months, by_month["order_attainment_pct"], marker="o", linewidth=2,
+                color=IB_GREEN, label="Order Attainment %")
+    if "delivery_attainment_pct" in by_month.columns:
+        ax.plot(months, by_month["delivery_attainment_pct"], marker="s", linewidth=2,
+                color="#FF9800", label="Delivery Attainment %")
+
+    ax.axhline(y=100, color="#E91E63", linestyle="--", linewidth=1, alpha=0.6, label="100% Target")
+    ax.set_title("Plan Attainment % by Month")
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Attainment (%)")
+    ax.legend()
+    fig.autofmt_xdate()
+    plt.tight_layout()
+
+    filepath = str(Path(output_path) / "attainment_trend.png")
+    fig.savefig(filepath)
+    plt.close(fig)
+    return filepath
+
+
+def plot_plan_vs_actual_by_corp(by_corp: pd.DataFrame, output_path: str) -> str:
+    """Generate plan vs actual comparison by corp."""
+    setup_style()
+    fig, ax = plt.subplots(figsize=(12, max(6, len(by_corp) * 0.6)))
+
+    data = by_corp.sort_values("plan_units", ascending=True)
+    y = range(len(data))
+    height = 0.35
+
+    ax.barh([i - height / 2 for i in y], data["plan_units"], height,
+            label="AOP Plan", color="#90CAF9", edgecolor="#1565C0")
+    if "actual_orders" in data.columns:
+        ax.barh([i + height / 2 for i in y], data["actual_orders"], height,
+                label="Actual Orders", color=IB_GREEN, edgecolor=IB_GREEN_DARK)
+
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(data["corp"])
+    ax.set_title("Plan vs Actual by Corp")
+    ax.set_xlabel("Units")
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.legend()
+    plt.tight_layout()
+
+    filepath = str(Path(output_path) / "plan_vs_actual_corp.png")
+    fig.savefig(filepath)
+    plt.close(fig)
+    return filepath
+
+
+def plot_variance_waterfall(by_month: pd.DataFrame, output_path: str) -> str:
+    """Generate a variance bar chart (actual - plan) by month."""
+    setup_style()
+    fig, ax = plt.subplots()
+
+    if "order_variance" not in by_month.columns:
+        plt.close(fig)
+        return ""
+
+    months = by_month["month_str"]
+    variance = by_month["order_variance"]
+    colors = [IB_GREEN if v >= 0 else "#E91E63" for v in variance]
+
+    ax.bar(months, variance, color=colors)
+    ax.axhline(y=0, color="black", linewidth=0.5)
+    ax.set_title("Order Variance vs Plan (Actual - Plan)")
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Unit Variance")
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:+,.0f}"))
+    fig.autofmt_xdate()
+    plt.tight_layout()
+
+    filepath = str(Path(output_path) / "variance_waterfall.png")
+    fig.savefig(filepath)
+    plt.close(fig)
+    return filepath

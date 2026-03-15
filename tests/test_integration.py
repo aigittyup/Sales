@@ -20,6 +20,11 @@ from analysis_agent.metrics import (
     detect_data_type,
     segment_analysis,
 )
+from analysis_agent.plan_comparison import (
+    compare_plan_vs_actual,
+    load_actuals_data,
+    load_aop_data,
+)
 
 
 # --- Loader tests ---
@@ -286,3 +291,152 @@ class TestDashboardServer:
                 assert data["data_type"] == "revenue"
             finally:
                 webbrowser.open = orig_open
+
+
+# --- Plan vs Actual Comparison ---
+
+class TestPlanComparison:
+    @pytest.fixture
+    def aop_csv(self, tmp_path):
+        csv = tmp_path / "aop.csv"
+        csv.write_text(
+            "Aop Reporting Date,Commercial Segment,Aop Sales Units,Corp,Distributor Name,Product Num\n"
+            "2025-10-01,Retail,500,ACME,ACME INC,P001\n"
+            "2025-10-01,Commercial,300,BETA,BETA CO,P002\n"
+            "2025-11-01,Retail,600,ACME,ACME INC,P001\n"
+            "2025-11-01,Commercial,400,BETA,BETA CO,P002\n"
+        )
+        return str(csv)
+
+    @pytest.fixture
+    def actuals_csv(self, tmp_path):
+        csv = tmp_path / "actuals.csv"
+        csv.write_text(
+            "date,corp_name,order_qty,total_delivered_qty,otif,fill\n"
+            "2025-10-15,ACME,480,460,0.96,0.97\n"
+            "2025-10-20,BETA,310,290,0.94,0.95\n"
+            "2025-11-10,ACME,620,590,0.98,0.99\n"
+            "2025-11-18,BETA,380,360,0.95,0.96\n"
+        )
+        return str(csv)
+
+    def test_load_aop_data(self, aop_csv):
+        df = load_aop_data(aop_csv)
+        assert "plan_units" in df.columns
+        assert "plan_date" in df.columns
+        assert "month" in df.columns
+        assert len(df) == 4
+        assert df["plan_units"].sum() == 1800
+
+    def test_load_actuals_data(self, actuals_csv):
+        df = load_actuals_data(actuals_csv)
+        assert "actual_orders" in df.columns
+        assert "actual_delivered" in df.columns
+        assert "month" in df.columns
+        assert len(df) == 4
+
+    def test_compare_monthly(self, aop_csv, actuals_csv):
+        plan_df = load_aop_data(aop_csv)
+        actuals_df = load_actuals_data(actuals_csv)
+        result = compare_plan_vs_actual(plan_df, actuals_df)
+
+        assert len(result.by_month) == 2
+        assert "plan_units" in result.by_month.columns
+        assert "actual_orders" in result.by_month.columns
+        assert "order_variance" in result.by_month.columns
+        assert "order_attainment_pct" in result.by_month.columns
+
+    def test_compare_by_corp(self, aop_csv, actuals_csv):
+        plan_df = load_aop_data(aop_csv)
+        actuals_df = load_actuals_data(actuals_csv)
+        result = compare_plan_vs_actual(plan_df, actuals_df)
+
+        assert not result.by_corp.empty
+        assert "corp" in result.by_corp.columns
+        assert "plan_units" in result.by_corp.columns
+
+    def test_summary_values(self, aop_csv, actuals_csv):
+        plan_df = load_aop_data(aop_csv)
+        actuals_df = load_actuals_data(actuals_csv)
+        result = compare_plan_vs_actual(plan_df, actuals_df)
+
+        s = result.summary
+        assert s["total_plan_units"] == 1800
+        assert s["total_actual_orders"] == 1790
+        assert s["total_actual_delivered"] == 1700
+        assert s["order_attainment_pct"] > 0
+        assert s["delivery_attainment_pct"] > 0
+        assert s["months_compared"] == 2
+
+    def test_variance_correct_sign(self, aop_csv, actuals_csv):
+        plan_df = load_aop_data(aop_csv)
+        actuals_df = load_actuals_data(actuals_csv)
+        result = compare_plan_vs_actual(plan_df, actuals_df)
+
+        # Oct: plan=800, actual=790 -> negative variance
+        # Nov: plan=1000, actual=1000 -> zero variance
+        for _, row in result.by_month.iterrows():
+            expected_var = row["actual_orders"] - row["plan_units"]
+            assert row["order_variance"] == expected_var
+
+    def test_attainment_calculation(self, aop_csv, actuals_csv):
+        plan_df = load_aop_data(aop_csv)
+        actuals_df = load_actuals_data(actuals_csv)
+        result = compare_plan_vs_actual(plan_df, actuals_df)
+
+        for _, row in result.by_month.iterrows():
+            if row["plan_units"] > 0:
+                expected_pct = round(row["actual_orders"] / row["plan_units"] * 100, 1)
+                assert row["order_attainment_pct"] == expected_pct
+
+
+class TestPlanComparisonPipeline:
+    def test_agent_with_plan_file(self, tmp_path):
+        """Full pipeline with plan comparison."""
+        actuals = tmp_path / "actuals.csv"
+        actuals.write_text(
+            'Corp Name,OTIF %,Fill %,Order Qty,Total Delivered Qty,Not Delivered,Group Size,Reporting Date - Month,Reporting Date - Year\n'
+            'ACME,95%,97%,"10,000","9,700",300,24F,October,2025\n'
+            'ACME,98%,99%,"8,000","7,920",80,65,November,2025\n'
+            'BETA,92%,94%,"12,000","11,280",720,24F,October,2025\n'
+            'BETA,96%,97%,"9,500","9,215",285,65,November,2025\n'
+        )
+        plan = tmp_path / "plan.csv"
+        plan.write_text(
+            "Aop Reporting Date,Aop Sales Units,Corp\n"
+            "2025-10-01,11000,ACME\n"
+            "2025-10-01,13000,BETA\n"
+            "2025-11-01,9000,ACME\n"
+            "2025-11-01,10000,BETA\n"
+        )
+        agent = SalesAnalysisAgent(
+            str(actuals),
+            output_dir=str(tmp_path / "out"),
+            plan_file=str(plan),
+        )
+        report = agent.run(generate_charts=True)
+
+        # Verify plan comparison is in report
+        assert "plan_comparison" in report
+        pc = report["plan_comparison"]
+        assert pc["summary"]["total_plan_units"] == 43000
+        assert pc["summary"]["total_actual_orders"] > 0
+        assert len(pc["by_month"]) >= 2
+
+        # Verify charts include plan charts
+        plan_charts = [c for c in report["charts"] if "plan" in c or "attainment" in c or "variance" in c]
+        assert len(plan_charts) >= 2
+
+        # Verify JSON is valid
+        report_json = (tmp_path / "out" / "sales_report.json").read_text()
+        parsed = json.loads(report_json)
+        assert "NaN" not in report_json
+        assert "plan_comparison" in parsed
+
+
+class TestDashboardPlanUpload:
+    def test_html_has_plan_upload_button(self):
+        from analysis_agent.dashboard import DASHBOARD_HTML
+        assert "Upload Plan" in DASHBOARD_HTML
+        assert "plan-input" in DASHBOARD_HTML
+        assert "/api/upload-plan" in DASHBOARD_HTML

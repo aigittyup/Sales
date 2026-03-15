@@ -18,16 +18,26 @@ from analysis_agent.metrics import (
     detect_data_type,
     segment_analysis,
 )
+from analysis_agent.plan_comparison import (
+    PlanVsActualResult,
+    compare_plan_vs_actual,
+    load_actuals_data,
+    load_aop_data,
+)
 from analysis_agent.visualizations import (
+    plot_attainment_trend,
     plot_correlation_heatmap,
     plot_corp_performance,
     plot_group_performance,
     plot_growth_rates,
     plot_order_volume_trend,
     plot_otif_fill_trend,
+    plot_plan_vs_actual_by_corp,
+    plot_plan_vs_actual_trend,
     plot_revenue_trend,
     plot_segment_breakdown,
     plot_top_products,
+    plot_variance_waterfall,
 )
 
 
@@ -52,6 +62,7 @@ class SalesAnalysisAgent:
         date_col: str = "date",
         product_col: str = "product",
         segment_cols: list[str] | None = None,
+        plan_file: str | None = None,
     ):
         self.data_source = data_source
         self.output_dir = output_dir
@@ -60,10 +71,12 @@ class SalesAnalysisAgent:
         self.date_col = date_col
         self.product_col = product_col
         self.segment_cols = segment_cols or []
+        self.plan_file = plan_file
 
         self._df: pd.DataFrame | None = None
         self._metrics: Union[SalesMetrics, SupplyChainMetrics, None] = None
         self._data_type: str | None = None
+        self._plan_result: PlanVsActualResult | None = None
 
     @property
     def data(self) -> pd.DataFrame:
@@ -114,6 +127,29 @@ class SalesAnalysisAgent:
         if not corr["matrix"].empty:
             charts.append(plot_correlation_heatmap(corr["matrix"], self.output_dir))
 
+        # Plan vs Actual charts
+        if self._plan_result is not None:
+            charts.extend(self._generate_plan_charts())
+
+        return charts
+
+    def _generate_plan_charts(self) -> list[str]:
+        charts = []
+        pr = self._plan_result
+        if not pr.by_month.empty:
+            path = plot_plan_vs_actual_trend(pr.by_month, self.output_dir)
+            if path:
+                charts.append(path)
+            path = plot_attainment_trend(pr.by_month, self.output_dir)
+            if path:
+                charts.append(path)
+            path = plot_variance_waterfall(pr.by_month, self.output_dir)
+            if path:
+                charts.append(path)
+        if not pr.by_corp.empty:
+            path = plot_plan_vs_actual_by_corp(pr.by_corp, self.output_dir)
+            if path:
+                charts.append(path)
         return charts
 
     def _generate_revenue_charts(self) -> list[str]:
@@ -221,6 +257,16 @@ class SalesAnalysisAgent:
                 "strong_correlations": corr["strong_correlations"],
             }
 
+        # Plan vs Actual
+        if self._plan_result is not None:
+            pr = self._plan_result
+            report["plan_comparison"] = {
+                "summary": pr.summary,
+                "by_month": pr.by_month.to_dict(orient="records") if not pr.by_month.empty else [],
+                "by_corp": pr.by_corp.to_dict(orient="records") if not pr.by_corp.empty else [],
+                "by_segment": pr.by_segment.to_dict(orient="records") if not pr.by_segment.empty else [],
+            }
+
         return report
 
     def save_report(self, report: dict) -> str:
@@ -255,6 +301,18 @@ class SalesAnalysisAgent:
             print(f"  Total Revenue: ${summary['total_revenue']:,.2f}")
             print(f"  Transactions:  {summary['num_transactions']}")
             print(f"  Avg Order:     ${summary['avg_order_value']:,.2f}")
+
+        # Plan comparison (if plan file provided)
+        if self.plan_file:
+            print("  Loading plan data for comparison...")
+            try:
+                plan_df = load_aop_data(self.plan_file)
+                actuals_df = load_actuals_data(self.data_source)
+                self._plan_result = compare_plan_vs_actual(plan_df, actuals_df)
+                ps = self._plan_result.summary
+                print(f"  Plan: {ps['total_plan_units']:,} units | Orders: {ps['total_actual_orders']:,} | Attainment: {ps['order_attainment_pct']}%")
+            except Exception as e:
+                print(f"  Warning: Plan comparison failed: {e}")
 
         charts = []
         if generate_charts:
