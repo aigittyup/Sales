@@ -33,24 +33,31 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
         .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-        /* Upload area */
-        .upload-section { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .upload-section h2 { font-size: 18px; margin-bottom: 16px; color: #00843D; }
-        .upload-zone { border: 2px dashed #ccc; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .upload-zone:hover, .upload-zone.dragover { border-color: #00843D; background: #e8f5e9; }
-        .upload-zone p { color: #666; margin-bottom: 12px; }
-        .upload-zone input[type="file"] { display: none; }
-        .upload-btn { background: #00843D; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        /* Upload bar - compact collapsible */
+        .upload-bar { background: white; border-radius: 8px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        .upload-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; cursor: pointer; user-select: none; }
+        .upload-toggle:hover { background: #f8f9fa; }
+        .upload-toggle h3 { font-size: 13px; color: #00843D; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .upload-toggle .arrow { transition: transform 0.2s; font-size: 10px; color: #999; }
+        .upload-toggle .arrow.open { transform: rotate(90deg); }
+        .upload-body { display: none; padding: 0 20px 16px; }
+        .upload-body.open { display: block; }
+        .upload-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .upload-row input[type="file"] { display: none; }
+        .upload-btn { background: #00843D; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap; }
         .upload-btn:hover { background: #005a28; }
         .upload-btn:disabled { background: #ccc; cursor: not-allowed; }
-        .upload-options { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; align-items: end; }
-        .upload-options label { font-size: 13px; color: #555; display: flex; flex-direction: column; gap: 4px; }
-        .upload-options input[type="text"] { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 140px; }
+        .upload-btn.sm { padding: 5px 12px; font-size: 11px; }
+        .file-label { font-size: 12px; color: #666; }
+        .upload-options { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; align-items: end; }
+        .upload-options label { font-size: 11px; color: #555; display: flex; flex-direction: column; gap: 2px; }
+        .upload-options input[type="text"] { padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; width: 110px; }
         .upload-options input[type="text"]:focus { outline: none; border-color: #00843D; box-shadow: 0 0 0 2px rgba(0,132,61,0.15); }
-        .status-msg { margin-top: 12px; padding: 10px; border-radius: 4px; font-size: 14px; display: none; }
+        .status-msg { margin-top: 8px; padding: 6px 10px; border-radius: 4px; font-size: 12px; display: none; }
         .status-msg.success { display: block; background: #d4edda; color: #155724; }
         .status-msg.error { display: block; background: #f8d7da; color: #721c24; }
         .status-msg.loading { display: block; background: #fff3cd; color: #856404; }
+        .drop-active { border: 2px dashed #00843D; background: #e8f5e9; border-radius: 6px; }
 
         /* Cards */
         .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -100,27 +107,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         </div>
     </div>
     <div class="container">
-        <!-- Upload Section -->
-        <div class="upload-section">
-            <h2>Upload Sales Data</h2>
-            <div class="upload-zone" id="drop-zone">
-                <p>Drag & drop a CSV or Excel file here, or click to browse</p>
-                <button class="upload-btn" id="browse-btn">Choose File</button>
-                <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
-                <p id="file-name" style="margin-top: 8px; font-weight: 500;"></p>
-            </div>
-            <div class="upload-options">
-                <label>Revenue Column <input type="text" id="opt-revenue" value="revenue" placeholder="revenue"></label>
-                <label>Date Column <input type="text" id="opt-date" value="date" placeholder="date"></label>
-                <label>Product Column <input type="text" id="opt-product" value="product" placeholder="product"></label>
-                <label>Quantity Column <input type="text" id="opt-quantity" value="quantity" placeholder="quantity"></label>
-                <label>Segment Columns <input type="text" id="opt-segments" value="" placeholder="region,channel"></label>
-                <button class="upload-btn" id="analyze-btn" disabled>Analyze</button>
-            </div>
-            <div class="status-msg" id="status-msg"></div>
-        </div>
-
-        <!-- Results (hidden until data loads) -->
+        <!-- Results first -->
         <div id="results" class="hidden">
             <div class="cards" id="metric-cards"></div>
             <div class="charts" id="charts"></div>
@@ -140,6 +127,32 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <table id="trend-table"><thead><tr></tr></thead><tbody></tbody></table>
             </div>
         </div>
+
+        <!-- Compact upload bar at bottom -->
+        <div class="upload-bar" id="upload-bar">
+            <div class="upload-toggle" onclick="toggleUpload()">
+                <h3><span class="arrow" id="upload-arrow">&#9654;</span> Upload New Data</h3>
+                <span class="file-label" id="file-label"></span>
+            </div>
+            <div class="upload-body" id="upload-body">
+                <div class="upload-row" id="drop-zone">
+                    <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+                    <button class="upload-btn sm" id="browse-btn">Choose File</button>
+                    <span class="file-label" id="file-name"></span>
+                    <span style="color:#ccc">|</span>
+                    <span class="file-label">or drag & drop a file here</span>
+                </div>
+                <div class="upload-options">
+                    <label>Revenue <input type="text" id="opt-revenue" value="revenue"></label>
+                    <label>Date <input type="text" id="opt-date" value="date"></label>
+                    <label>Product <input type="text" id="opt-product" value="product"></label>
+                    <label>Quantity <input type="text" id="opt-quantity" value="quantity"></label>
+                    <label>Segments <input type="text" id="opt-segments" value="" placeholder="region,channel"></label>
+                    <button class="upload-btn" id="analyze-btn" disabled>Analyze</button>
+                </div>
+                <div class="status-msg" id="status-msg"></div>
+            </div>
+        </div>
     </div>
     <div class="footer">Powered by Amplify | Interstate Batteries</div>
     <script>
@@ -147,9 +160,17 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         const fileInput = document.getElementById('file-input');
         const browseBtn = document.getElementById('browse-btn');
         const analyzeBtn = document.getElementById('analyze-btn');
-        const fileName = document.getElementById('file-name');
+        const fileNameEl = document.getElementById('file-name');
+        const fileLabelEl = document.getElementById('file-label');
         const statusMsg = document.getElementById('status-msg');
         let selectedFile = null;
+
+        function toggleUpload() {
+            const body = document.getElementById('upload-body');
+            const arrow = document.getElementById('upload-arrow');
+            body.classList.toggle('open');
+            arrow.classList.toggle('open');
+        }
 
         function updateRefreshTime() {
             const now = new Date();
@@ -166,17 +187,19 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         browseBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => { if (e.target.files[0]) selectFile(e.target.files[0]); });
 
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-active'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-active'));
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('dragover');
+            dropZone.classList.remove('drop-active');
             if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
         });
 
         function selectFile(file) {
             selectedFile = file;
-            fileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+            const label = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+            fileNameEl.textContent = label;
+            fileLabelEl.textContent = label;
             analyzeBtn.disabled = false;
         }
 
