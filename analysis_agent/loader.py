@@ -8,7 +8,7 @@ import pandas as pd
 
 def load_csv(filepath: str) -> pd.DataFrame:
     """Load sales data from a CSV file."""
-    return pd.read_csv(filepath, parse_dates=True, infer_datetime_format=True)
+    return pd.read_csv(filepath, parse_dates=True)
 
 
 def load_excel(filepath: str, sheet_name: str | None = None) -> pd.DataFrame:
