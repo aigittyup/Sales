@@ -121,13 +121,18 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             const file = e.target.files[0];
             if (!file) return;
             showToast('Analyzing ' + file.name + '...', 'loading');
+            console.log('Uploading:', file.name, file.size, 'bytes');
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
                 const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-                const result = await resp.json();
+                console.log('Response status:', resp.status);
+                const text = await resp.text();
+                console.log('Response body:', text.substring(0, 500));
+                let result;
+                try { result = JSON.parse(text); } catch(e) { showToast('Server returned invalid response', 'error'); fileInput.value = ''; return; }
                 if (result.error) {
                     showToast('Error: ' + result.error, 'error');
                 } else {
@@ -136,6 +141,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                     updateRefreshTime();
                 }
             } catch (err) {
+                console.error('Upload error:', err);
                 showToast('Upload failed: ' + err.message, 'error');
             }
             fileInput.value = '';
@@ -244,6 +250,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 def serve_dashboard(output_dir: str = "output", port: int = 8080):
     """Start a local web server to view the dashboard."""
     output_path = Path(output_dir).resolve()
+    project_root = Path(__file__).resolve().parent.parent
     os.makedirs(output_path, exist_ok=True)
 
     class DashboardHandler(http.server.BaseHTTPRequestHandler):
@@ -328,6 +335,7 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
                         capture_output=True,
                         text=True,
                         timeout=120,
+                        cwd=str(project_root),
                     )
 
                     if result.returncode != 0:
@@ -352,7 +360,8 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
             self.wfile.write(json.dumps(data, default=str).encode())
 
         def log_message(self, format, *args):
-            pass
+            if self.path == "/api/upload":
+                print(format % args)
 
     with socketserver.TCPServer(("", port), DashboardHandler) as httpd:
         url = f"http://localhost:{port}"
