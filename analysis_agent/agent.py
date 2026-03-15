@@ -3,20 +3,28 @@
 import json
 import os
 from pathlib import Path
+from typing import Union
 
 import pandas as pd
 
 from analysis_agent.loader import load_data
 from analysis_agent.metrics import (
     SalesMetrics,
+    SupplyChainMetrics,
     compute_growth_rates,
     compute_metrics,
+    compute_supply_chain_metrics,
     correlation_analysis,
+    detect_data_type,
     segment_analysis,
 )
 from analysis_agent.visualizations import (
     plot_correlation_heatmap,
+    plot_corp_performance,
+    plot_group_performance,
     plot_growth_rates,
+    plot_order_volume_trend,
+    plot_otif_fill_trend,
     plot_revenue_trend,
     plot_segment_breakdown,
     plot_top_products,
@@ -26,8 +34,8 @@ from analysis_agent.visualizations import (
 class SalesAnalysisAgent:
     """Automated sales data analysis agent.
 
-    Loads sales data, computes key metrics, generates visualizations,
-    and produces a summary report.
+    Auto-detects data type (revenue vs supply chain) and runs the
+    appropriate analysis pipeline.
 
     Usage:
         agent = SalesAnalysisAgent("data/sales.csv")
@@ -54,7 +62,8 @@ class SalesAnalysisAgent:
         self.segment_cols = segment_cols or []
 
         self._df: pd.DataFrame | None = None
-        self._metrics: SalesMetrics | None = None
+        self._metrics: Union[SalesMetrics, SupplyChainMetrics, None] = None
+        self._data_type: str | None = None
 
     @property
     def data(self) -> pd.DataFrame:
@@ -65,18 +74,26 @@ class SalesAnalysisAgent:
     def load_data(self) -> pd.DataFrame:
         """Load and prepare the sales data."""
         self._df = load_data(self.data_source)
+        self._data_type = detect_data_type(self._df)
         print(f"Loaded {len(self._df)} rows, {len(self._df.columns)} columns from {self.data_source}")
+        print(f"  Detected data type: {self._data_type}")
         return self._df
 
-    def analyze(self) -> SalesMetrics:
-        """Run core sales metrics analysis."""
-        self._metrics = compute_metrics(
-            self.data,
-            revenue_col=self.revenue_col,
-            quantity_col=self.quantity_col,
-            date_col=self.date_col,
-            product_col=self.product_col,
-        )
+    def analyze(self) -> Union[SalesMetrics, SupplyChainMetrics]:
+        """Run analysis based on detected data type."""
+        if self._data_type == "supply_chain":
+            self._metrics = compute_supply_chain_metrics(
+                self.data,
+                date_col=self.date_col,
+            )
+        else:
+            self._metrics = compute_metrics(
+                self.data,
+                revenue_col=self.revenue_col,
+                quantity_col=self.quantity_col,
+                date_col=self.date_col,
+                product_col=self.product_col,
+            )
         return self._metrics
 
     def generate_visualizations(self) -> list[str]:
@@ -87,33 +104,65 @@ class SalesAnalysisAgent:
         if self._metrics is None:
             self.analyze()
 
-        # Revenue trend
-        if not self._metrics.monthly_trend.empty:
-            charts.append(
-                plot_revenue_trend(self._metrics.monthly_trend, self.output_dir, self.date_col)
-            )
+        if self._data_type == "supply_chain":
+            charts.extend(self._generate_supply_chain_charts())
+        else:
+            charts.extend(self._generate_revenue_charts())
 
-            # Growth rates
-            growth = compute_growth_rates(self._metrics.monthly_trend)
+        # Correlation heatmap (works for both types)
+        corr = correlation_analysis(self.data)
+        if not corr["matrix"].empty:
+            charts.append(plot_correlation_heatmap(corr["matrix"], self.output_dir))
+
+        return charts
+
+    def _generate_revenue_charts(self) -> list[str]:
+        charts = []
+        metrics = self._metrics
+
+        if not metrics.monthly_trend.empty:
+            charts.append(
+                plot_revenue_trend(metrics.monthly_trend, self.output_dir, self.date_col)
+            )
+            growth = compute_growth_rates(metrics.monthly_trend)
             if not growth.empty:
                 charts.append(plot_growth_rates(growth, self.output_dir, self.date_col))
 
-        # Top products
-        if not self._metrics.top_products.empty:
+        if not metrics.top_products.empty:
             charts.append(
-                plot_top_products(self._metrics.top_products, self.output_dir, self.product_col)
+                plot_top_products(metrics.top_products, self.output_dir, self.product_col)
             )
 
-        # Segment breakdowns
         for seg_col in self.segment_cols:
             if seg_col in self.data.columns:
                 seg_df = segment_analysis(self.data, seg_col, self.revenue_col)
                 charts.append(plot_segment_breakdown(seg_df, seg_col, self.output_dir))
 
-        # Correlation heatmap
-        corr = correlation_analysis(self.data)
-        if not corr["matrix"].empty:
-            charts.append(plot_correlation_heatmap(corr["matrix"], self.output_dir))
+        return charts
+
+    def _generate_supply_chain_charts(self) -> list[str]:
+        charts = []
+        metrics = self._metrics
+
+        if not metrics.monthly_trend.empty:
+            charts.append(
+                plot_otif_fill_trend(metrics.monthly_trend, self.output_dir, self.date_col)
+            )
+            charts.append(
+                plot_order_volume_trend(metrics.monthly_trend, self.output_dir, self.date_col)
+            )
+
+        if not metrics.by_corp.empty:
+            charts.append(plot_corp_performance(metrics.by_corp, self.output_dir))
+
+        if not metrics.by_group.empty:
+            charts.append(plot_group_performance(metrics.by_group, self.output_dir))
+
+        # Segment breakdowns
+        for seg_col in self.segment_cols:
+            if seg_col in self.data.columns:
+                seg_df = segment_analysis(self.data, seg_col)
+                charts.append(plot_segment_breakdown(seg_df, seg_col, self.output_dir))
 
         return charts
 
@@ -123,29 +172,48 @@ class SalesAnalysisAgent:
             self.analyze()
 
         report = {
+            "data_type": self._data_type,
             "summary": self._metrics.summary(),
-            "top_products": (
-                self._metrics.top_products.to_dict(orient="records")
-                if not self._metrics.top_products.empty
-                else []
-            ),
-            "monthly_trend": (
-                self._metrics.monthly_trend.assign(
-                    **{self.date_col: self._metrics.monthly_trend[self.date_col].astype(str)}
-                ).to_dict(orient="records")
-                if not self._metrics.monthly_trend.empty
-                and self.date_col in self._metrics.monthly_trend.columns
-                else []
-            ),
         }
 
-        # Add segment analyses
+        if self._data_type == "supply_chain":
+            report["by_corp"] = (
+                self._metrics.by_corp.to_dict(orient="records")
+                if not self._metrics.by_corp.empty else []
+            )
+            report["by_group"] = (
+                self._metrics.by_group.to_dict(orient="records")
+                if not self._metrics.by_group.empty else []
+            )
+            if not self._metrics.monthly_trend.empty and self.date_col in self._metrics.monthly_trend.columns:
+                report["monthly_trend"] = (
+                    self._metrics.monthly_trend.assign(
+                        **{self.date_col: self._metrics.monthly_trend[self.date_col].astype(str)}
+                    ).to_dict(orient="records")
+                )
+            else:
+                report["monthly_trend"] = []
+        else:
+            report["top_products"] = (
+                self._metrics.top_products.to_dict(orient="records")
+                if not self._metrics.top_products.empty else []
+            )
+            if not self._metrics.monthly_trend.empty and self.date_col in self._metrics.monthly_trend.columns:
+                report["monthly_trend"] = (
+                    self._metrics.monthly_trend.assign(
+                        **{self.date_col: self._metrics.monthly_trend[self.date_col].astype(str)}
+                    ).to_dict(orient="records")
+                )
+            else:
+                report["monthly_trend"] = []
+
+        # Segment analyses
         for seg_col in self.segment_cols:
             if seg_col in self.data.columns:
-                seg_df = segment_analysis(self.data, seg_col, self.revenue_col)
+                seg_df = segment_analysis(self.data, seg_col)
                 report[f"segment_{seg_col}"] = seg_df.to_dict(orient="records")
 
-        # Add correlation analysis
+        # Correlation
         corr = correlation_analysis(self.data)
         if not corr["matrix"].empty:
             report["correlation"] = {
@@ -164,26 +232,26 @@ class SalesAnalysisAgent:
         return filepath
 
     def run(self, generate_charts: bool = True) -> dict:
-        """Execute the full analysis pipeline.
-
-        Returns the report dict with summary metrics, top products,
-        trends, and paths to generated charts.
-        """
+        """Execute the full analysis pipeline."""
         print("=== Sales Analysis Agent ===")
 
-        # Step 1: Load data
         print("\n[1/4] Loading data...")
         self.load_data()
 
-        # Step 2: Compute metrics
         print("[2/4] Computing metrics...")
         self.analyze()
         summary = self._metrics.summary()
-        print(f"  Total Revenue: ${summary['total_revenue']:,.2f}")
-        print(f"  Transactions:  {summary['num_transactions']}")
-        print(f"  Avg Order:     ${summary['avg_order_value']:,.2f}")
 
-        # Step 3: Generate charts
+        if self._data_type == "supply_chain":
+            print(f"  Total Orders:    {summary['total_order_qty']:,}")
+            print(f"  Total Delivered: {summary['total_delivered']:,}")
+            print(f"  Avg OTIF:        {summary['avg_otif_pct']}%")
+            print(f"  Avg Fill Rate:   {summary['avg_fill_pct']}%")
+        else:
+            print(f"  Total Revenue: ${summary['total_revenue']:,.2f}")
+            print(f"  Transactions:  {summary['num_transactions']}")
+            print(f"  Avg Order:     ${summary['avg_order_value']:,.2f}")
+
         charts = []
         if generate_charts:
             print("[3/4] Generating visualizations...")
@@ -192,7 +260,6 @@ class SalesAnalysisAgent:
         else:
             print("[3/4] Skipping visualizations")
 
-        # Step 4: Build and save report
         print("[4/4] Building report...")
         report = self.generate_report()
         report["charts"] = charts

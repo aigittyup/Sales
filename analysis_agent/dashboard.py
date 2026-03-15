@@ -238,18 +238,53 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             }
         });
 
+        function fmtVal(val, colName) {
+            if (typeof val !== 'number') return val;
+            if (colName.includes('otif') || colName.includes('fill')) return (val * 100).toFixed(1) + '%';
+            if (colName.includes('revenue') || colName.includes('avg') || colName.includes('price')) return '$' + val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (colName.includes('pct') || colName.includes('share')) return val.toFixed(1) + '%';
+            return val.toLocaleString();
+        }
+
+        function renderTable(tableId, rows) {
+            const thead = document.querySelector('#' + tableId + ' thead tr');
+            const tbody = document.querySelector('#' + tableId + ' tbody');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            if (rows && rows.length) {
+                const cols = Object.keys(rows[0]);
+                cols.forEach(c => thead.innerHTML += '<th>' + c.replace(/_/g, ' ') + '</th>');
+                rows.forEach(row => {
+                    let tr = '<tr>';
+                    cols.forEach(c => { tr += '<td>' + fmtVal(row[c], c) + '</td>'; });
+                    tbody.innerHTML += tr + '</tr>';
+                });
+            }
+        }
+
         function renderReport(data) {
             document.getElementById('results').classList.remove('hidden');
             const s = data.summary;
             document.getElementById('period').textContent = 'Period: ' + s.period;
 
-            // Metric cards
-            const cards = [
-                { label: 'Total Revenue', value: '$' + Number(s.total_revenue).toLocaleString(), sub: s.num_transactions + ' transactions' },
-                { label: 'Avg Order Value', value: '$' + Number(s.avg_order_value).toLocaleString(), sub: 'Median: $' + Number(s.median_order_value).toLocaleString() },
-                { label: 'Units Sold', value: Number(s.total_units).toLocaleString(), sub: '' },
-                { label: 'Revenue Std Dev', value: '$' + Number(s.revenue_std).toLocaleString(), sub: '' },
-            ];
+            // Metric cards - adapt to data type
+            let cards;
+            const isSC = data.data_type === 'supply_chain';
+            if (isSC) {
+                cards = [
+                    { label: 'Total Orders', value: Number(s.total_order_qty).toLocaleString(), sub: s.num_records + ' records' },
+                    { label: 'Total Delivered', value: Number(s.total_delivered).toLocaleString(), sub: Number(s.total_not_delivered).toLocaleString() + ' not delivered' },
+                    { label: 'Avg OTIF %', value: s.avg_otif_pct + '%', sub: 'Target: 95%' },
+                    { label: 'Avg Fill Rate', value: s.avg_fill_pct + '%', sub: 'Overall: ' + s.overall_fill_rate_pct + '%' },
+                ];
+            } else {
+                cards = [
+                    { label: 'Total Revenue', value: '$' + Number(s.total_revenue).toLocaleString(), sub: s.num_transactions + ' transactions' },
+                    { label: 'Avg Order Value', value: '$' + Number(s.avg_order_value).toLocaleString(), sub: 'Median: $' + Number(s.median_order_value).toLocaleString() },
+                    { label: 'Units Sold', value: Number(s.total_units).toLocaleString(), sub: '' },
+                    { label: 'Revenue Std Dev', value: '$' + Number(s.revenue_std).toLocaleString(), sub: '' },
+                ];
+            }
             const cardsEl = document.getElementById('metric-cards');
             cardsEl.innerHTML = '';
             cards.forEach(c => {
@@ -284,40 +319,20 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 corrSection.style.display = 'none';
             }
 
-            // Top Products table
-            const prodThead = document.querySelector('#products-table thead tr');
-            const prodTbody = document.querySelector('#products-table tbody');
-            prodThead.innerHTML = '';
-            prodTbody.innerHTML = '';
-            if (data.top_products && data.top_products.length) {
-                const cols = Object.keys(data.top_products[0]);
-                cols.forEach(c => prodThead.innerHTML += '<th>' + c.replace(/_/g, ' ') + '</th>');
-                data.top_products.forEach(row => {
-                    let tr = '<tr>';
-                    cols.forEach(c => {
-                        let val = typeof row[c] === 'number' ? (c.includes('revenue') || c.includes('avg') ? '$' + row[c].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : row[c].toLocaleString()) : row[c];
-                        tr += '<td>' + val + '</td>';
-                    });
-                    prodTbody.innerHTML += tr + '</tr>';
-                });
-            }
+            // Data tables - adapt to data type
+            const prodSection = document.getElementById('products-section');
+            const trendSection = document.getElementById('trend-section');
 
-            // Monthly Trend table
-            const trendThead = document.querySelector('#trend-table thead tr');
-            const trendTbody = document.querySelector('#trend-table tbody');
-            trendThead.innerHTML = '';
-            trendTbody.innerHTML = '';
-            if (data.monthly_trend && data.monthly_trend.length) {
-                const cols = Object.keys(data.monthly_trend[0]);
-                cols.forEach(c => trendThead.innerHTML += '<th>' + c.replace(/_/g, ' ') + '</th>');
-                data.monthly_trend.forEach(row => {
-                    let tr = '<tr>';
-                    cols.forEach(c => {
-                        let val = typeof row[c] === 'number' ? (c.includes('revenue') || c.includes('avg') ? '$' + row[c].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : row[c].toLocaleString()) : row[c];
-                        tr += '<td>' + val + '</td>';
-                    });
-                    trendTbody.innerHTML += tr + '</tr>';
-                });
+            if (isSC) {
+                prodSection.querySelector('h2').textContent = 'Performance by Corp';
+                renderTable('products-table', data.by_corp || []);
+                trendSection.querySelector('h2').textContent = 'Monthly Trend';
+                renderTable('trend-table', data.monthly_trend || []);
+            } else {
+                prodSection.querySelector('h2').textContent = 'Top Products';
+                renderTable('products-table', data.top_products || []);
+                trendSection.querySelector('h2').textContent = 'Monthly Trend';
+                renderTable('trend-table', data.monthly_trend || []);
             }
         }
 
