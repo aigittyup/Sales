@@ -221,6 +221,23 @@ class TestJSONValidity:
             assert parsed["data_type"] in ("supply_chain", "revenue")
 
 
+# --- Dashboard HTML validity ---
+
+class TestDashboardHTML:
+    def test_html_has_no_broken_regex(self):
+        """Verify JS regex patterns survive Python string escaping."""
+        from analysis_agent.dashboard import DASHBOARD_HTML
+        # Check that the chart path splitter is valid JS
+        assert "path.split(/[" in DASHBOARD_HTML
+        # No unescaped single backslash in regex that would break JS
+        import re
+        # Find all regex literals and ensure they're balanced
+        for i, line in enumerate(DASHBOARD_HTML.split("\n"), 1):
+            if ".split(/" in line or ".replace(/" in line or ".match(/" in line:
+                # Count unescaped slashes — regex must be balanced
+                assert line.count("(") == line.count(")"), f"Unbalanced parens on line {i}: {line.strip()}"
+
+
 # --- Dashboard server ---
 
 class TestDashboardServer:

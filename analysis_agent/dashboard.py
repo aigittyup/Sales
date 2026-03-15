@@ -202,7 +202,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             const chartsEl = document.getElementById('charts');
             chartsEl.innerHTML = '';
             (data.charts || []).forEach(path => {
-                const name = path.replace(/\\/g, '/').split('/').pop();
+                const name = path.split(/[/\\\\]/).pop();
                 chartsEl.innerHTML += '<div class="chart-container"><img src="/charts/' + name + '?t=' + Date.now() + '" alt="' + name + '"></div>';
             });
 
