@@ -224,11 +224,15 @@ class SalesAnalysisAgent:
         return report
 
     def save_report(self, report: dict) -> str:
-        """Save the report to a JSON file."""
+        """Save the report to a JSON file (browser-safe, no NaN/Infinity)."""
         os.makedirs(self.output_dir, exist_ok=True)
         filepath = os.path.join(self.output_dir, "sales_report.json")
+        text = json.dumps(report, indent=2, default=str)
+        # Replace Python's NaN/Infinity with JSON null
+        text = text.replace(": NaN", ": null").replace(":NaN", ":null")
+        text = text.replace(": Infinity", ": null").replace(": -Infinity", ": null")
         with open(filepath, "w") as f:
-            json.dump(report, f, indent=2, default=str)
+            f.write(text)
         return filepath
 
     def run(self, generate_charts: bool = True) -> dict:
