@@ -11,9 +11,11 @@ from analysis_agent.metrics import (
     SalesMetrics,
     compute_growth_rates,
     compute_metrics,
+    correlation_analysis,
     segment_analysis,
 )
 from analysis_agent.visualizations import (
+    plot_correlation_heatmap,
     plot_growth_rates,
     plot_revenue_trend,
     plot_segment_breakdown,
@@ -108,6 +110,11 @@ class SalesAnalysisAgent:
                 seg_df = segment_analysis(self.data, seg_col, self.revenue_col)
                 charts.append(plot_segment_breakdown(seg_df, seg_col, self.output_dir))
 
+        # Correlation heatmap
+        corr = correlation_analysis(self.data)
+        if not corr["matrix"].empty:
+            charts.append(plot_correlation_heatmap(corr["matrix"], self.output_dir))
+
         return charts
 
     def generate_report(self) -> dict:
@@ -137,6 +144,14 @@ class SalesAnalysisAgent:
             if seg_col in self.data.columns:
                 seg_df = segment_analysis(self.data, seg_col, self.revenue_col)
                 report[f"segment_{seg_col}"] = seg_df.to_dict(orient="records")
+
+        # Add correlation analysis
+        corr = correlation_analysis(self.data)
+        if not corr["matrix"].empty:
+            report["correlation"] = {
+                "matrix": corr["matrix"].round(4).to_dict(),
+                "strong_correlations": corr["strong_correlations"],
+            }
 
         return report
 

@@ -129,6 +129,33 @@ def segment_analysis(
     return result
 
 
+def correlation_analysis(df: pd.DataFrame) -> dict:
+    """Compute correlation matrix and identify strong correlations among numeric columns."""
+    numeric_df = df.select_dtypes(include=[np.number])
+    if numeric_df.shape[1] < 2:
+        return {"matrix": pd.DataFrame(), "strong_correlations": []}
+
+    corr_matrix = numeric_df.corr()
+
+    # Find strong correlations (|r| >= 0.5, excluding self-correlations)
+    strong = []
+    cols = corr_matrix.columns
+    for i in range(len(cols)):
+        for j in range(i + 1, len(cols)):
+            r = corr_matrix.iloc[i, j]
+            if abs(r) >= 0.5:
+                strong.append({
+                    "col_1": cols[i],
+                    "col_2": cols[j],
+                    "correlation": round(float(r), 4),
+                    "strength": "strong" if abs(r) >= 0.7 else "moderate",
+                })
+
+    strong.sort(key=lambda x: abs(x["correlation"]), reverse=True)
+
+    return {"matrix": corr_matrix, "strong_correlations": strong}
+
+
 def _validate_columns(df: pd.DataFrame, required: list[str]) -> None:
     missing = [c for c in required if c not in df.columns]
     if missing:

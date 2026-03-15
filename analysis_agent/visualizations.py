@@ -60,20 +60,53 @@ def plot_top_products(top_products: pd.DataFrame, output_path: str, product_col:
 
 
 def plot_segment_breakdown(segment_df: pd.DataFrame, segment_col: str, output_path: str) -> str:
-    """Generate a pie chart for segment revenue distribution."""
+    """Generate a grouped bar chart for segment revenue distribution."""
     setup_style()
     fig, ax = plt.subplots()
 
-    ax.pie(
-        segment_df["total_revenue"],
-        labels=segment_df[segment_col],
-        autopct="%1.1f%%",
-        startangle=140,
-    )
+    data = segment_df.sort_values("total_revenue", ascending=True)
+    bars = ax.barh(data[segment_col], data["total_revenue"], color=sns.color_palette("husl", len(data)))
+
+    # Add percentage labels on bars
+    total = data["total_revenue"].sum()
+    for bar, val in zip(bars, data["total_revenue"]):
+        pct = val / total * 100
+        ax.text(bar.get_width() + total * 0.01, bar.get_y() + bar.get_height() / 2,
+                f"{pct:.1f}%", va="center", fontsize=10)
+
     ax.set_title(f"Revenue by {segment_col.replace('_', ' ').title()}")
+    ax.set_xlabel("Revenue ($)")
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"${x:,.0f}"))
     plt.tight_layout()
 
     filepath = str(Path(output_path) / f"segment_{segment_col}.png")
+    fig.savefig(filepath)
+    plt.close(fig)
+    return filepath
+
+
+def plot_correlation_heatmap(corr_matrix: pd.DataFrame, output_path: str) -> str:
+    """Generate a correlation heatmap for numeric columns."""
+    setup_style()
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    mask = None
+    sns.heatmap(
+        corr_matrix,
+        annot=True,
+        fmt=".2f",
+        cmap="RdBu_r",
+        center=0,
+        vmin=-1,
+        vmax=1,
+        square=True,
+        linewidths=0.5,
+        ax=ax,
+    )
+    ax.set_title("Correlation Matrix (Numeric Columns)")
+    plt.tight_layout()
+
+    filepath = str(Path(output_path) / "correlation_heatmap.png")
     fig.savefig(filepath)
     plt.close(fig)
     return filepath
