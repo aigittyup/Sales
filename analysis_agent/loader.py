@@ -1,15 +1,19 @@
 """Data loading utilities for various sales data formats."""
 
-import re
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 
+def _is_string_col(series: pd.Series) -> bool:
+    """Check if a column contains string data (works with pandas 2.x and 3.x)."""
+    return series.dtype == object or str(series.dtype) == "string" or str(series.dtype) == "str"
+
+
 def load_csv(filepath: str) -> pd.DataFrame:
     """Load sales data from a CSV file."""
-    return pd.read_csv(filepath, parse_dates=True)
+    return pd.read_csv(filepath)
 
 
 def load_excel(filepath: str, sheet_name: str | None = None) -> pd.DataFrame:
@@ -45,6 +49,7 @@ def load_data(filepath: str, **kwargs) -> pd.DataFrame:
     df = _parse_percentages(df)
     df = _parse_comma_numbers(df)
     df = _combine_month_year(df)
+    df = _parse_date_columns(df)
     return df
 
 
@@ -56,38 +61,31 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         .str.replace(r"[^\w]+", "_", regex=True)
         .str.strip("_")
     )
-
-    # Auto-detect and parse date columns
-    for col in df.columns:
-        if any(keyword in col for keyword in ("date", "time", "created", "updated")):
-            try:
-                df[col] = pd.to_datetime(df[col], errors="coerce")
-            except Exception:
-                pass
-
     return df
 
 
 def _parse_percentages(df: pd.DataFrame) -> pd.DataFrame:
     """Convert percentage strings like '98%' to float values (0.98)."""
     for col in df.columns:
-        if df[col].dtype == object:
-            sample = df[col].dropna().head(20)
+        if _is_string_col(df[col]):
+            sample = df[col].dropna().head(20).astype(str)
             if len(sample) > 0 and sample.str.match(r"^\d+\.?\d*%$").all():
-                df[col] = df[col].str.rstrip("%").astype(float) / 100.0
+                df[col] = df[col].astype(str).str.rstrip("%").astype(float) / 100.0
     return df
 
 
 def _parse_comma_numbers(df: pd.DataFrame) -> pd.DataFrame:
     """Convert comma-formatted number strings like '17,492' to numeric."""
     for col in df.columns:
-        if df[col].dtype == object:
-            sample = df[col].dropna().head(20)
+        if _is_string_col(df[col]):
+            sample = df[col].dropna().head(20).astype(str)
             if len(sample) > 0 and sample.str.match(r"^[\d,]+\.?\d*$").all():
                 try:
-                    df[col] = df[col].str.replace(",", "").astype(float)
-                    if (df[col] == df[col].astype(int)).all():
-                        df[col] = df[col].astype(int)
+                    converted = df[col].astype(str).str.replace(",", "").astype(float)
+                    if (converted == converted.astype(int)).all():
+                        df[col] = converted.astype(int)
+                    else:
+                        df[col] = converted
                 except (ValueError, TypeError):
                     pass
     return df
@@ -104,7 +102,7 @@ def _combine_month_year(df: pd.DataFrame) -> pd.DataFrame:
         elif "year" in col and "month" not in col:
             year_col = col
 
-    if month_col and year_col and df[month_col].dtype == object:
+    if month_col and year_col and _is_string_col(df[month_col]):
         try:
             df["date"] = pd.to_datetime(
                 df[month_col].astype(str) + " " + df[year_col].astype(str),
@@ -114,4 +112,23 @@ def _combine_month_year(df: pd.DataFrame) -> pd.DataFrame:
         except Exception:
             pass
 
+    return df
+
+
+def _parse_date_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Auto-detect and parse standalone date columns (not qty/delivery columns)."""
+    skip_keywords = {"qty", "delivered", "order", "amount", "total", "not_delivered"}
+    for col in df.columns:
+        if not _is_string_col(df[col]):
+            continue
+        # Only parse columns that look like actual date fields
+        if not any(kw in col for kw in ("date", "time", "created", "updated")):
+            continue
+        # Skip columns that contain qty/delivery keywords
+        if any(kw in col for kw in skip_keywords):
+            continue
+        try:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+        except Exception:
+            pass
     return df
