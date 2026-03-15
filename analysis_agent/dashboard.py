@@ -202,7 +202,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             const chartsEl = document.getElementById('charts');
             chartsEl.innerHTML = '';
             (data.charts || []).forEach(path => {
-                const name = path.replace(/\\\\/g, '/').split('/').pop();
+                const name = path.replace(/\\/g, '/').split('/').pop();
                 chartsEl.innerHTML += '<div class="chart-container"><img src="/charts/' + name + '?t=' + Date.now() + '" alt="' + name + '"></div>';
             });
 
@@ -357,7 +357,10 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(data, default=str).encode())
+            # Replace NaN with null for valid JSON
+            text = json.dumps(data, default=str)
+            text = text.replace(": NaN", ": null").replace(":NaN", ":null")
+            self.wfile.write(text.encode())
 
         def log_message(self, format, *args):
             if self.path == "/api/upload":
