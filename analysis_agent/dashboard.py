@@ -9,6 +9,8 @@ import sys
 import webbrowser
 from pathlib import Path
 
+from analysis_agent.chat_engine import answer_question
+
 DASHBOARD_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,6 +60,25 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         .corr-negative { color: #e74c3c; }
         .hidden { display: none; }
         .footer { text-align: center; padding: 16px; color: #999; font-size: 12px; }
+
+        /* Chat panel */
+        .chat-toggle { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #00843D, #005a28); color: white; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.25); z-index: 1000; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+        .chat-toggle:hover { transform: scale(1.1); }
+        .chat-panel { position: fixed; bottom: 92px; right: 24px; width: 400px; max-height: 520px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 1000; display: none; flex-direction: column; overflow: hidden; }
+        .chat-panel.open { display: flex; }
+        .chat-header { background: linear-gradient(135deg, #00843D, #005a28); color: white; padding: 14px 18px; font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header button { background: none; border: none; color: white; font-size: 18px; cursor: pointer; opacity: 0.8; }
+        .chat-header button:hover { opacity: 1; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 16px; min-height: 300px; max-height: 380px; }
+        .chat-msg { margin-bottom: 12px; line-height: 1.5; font-size: 14px; }
+        .chat-msg.bot { background: #f0f2f5; padding: 10px 14px; border-radius: 12px 12px 12px 2px; max-width: 90%; }
+        .chat-msg.user { background: #00843D; color: white; padding: 10px 14px; border-radius: 12px 12px 2px 12px; max-width: 80%; margin-left: auto; text-align: right; }
+        .chat-msg strong { font-weight: 600; }
+        .chat-input-row { display: flex; border-top: 1px solid #eee; padding: 10px; gap: 8px; }
+        .chat-input-row input { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 8px 16px; font-size: 14px; outline: none; }
+        .chat-input-row input:focus { border-color: #00843D; }
+        .chat-input-row button { background: #00843D; color: white; border: none; border-radius: 20px; padding: 8px 16px; cursor: pointer; font-size: 14px; }
+        .chat-input-row button:hover { background: #005a28; }
     </style>
 </head>
 <body>
@@ -103,6 +124,22 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         </div>
     </div>
     <div class="footer">Powered by Amplify | Interstate Batteries</div>
+
+    <!-- Chat Panel -->
+    <button class="chat-toggle" id="chat-toggle" onclick="toggleChat()" title="Ask a question">&#128172;</button>
+    <div class="chat-panel" id="chat-panel">
+        <div class="chat-header">
+            <span>Ask about your data</span>
+            <button onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="chat-msg bot">Hi! I can answer questions about your dashboard data. Try <strong>"summary"</strong>, <strong>"otif"</strong>, <strong>"trend"</strong>, or type <strong>"help"</strong> for more.</div>
+        </div>
+        <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()">Send</button>
+        </div>
+    </div>
     <script>
         const fileInput = document.getElementById('file-input');
         const planInput = document.getElementById('plan-input');
@@ -295,6 +332,42 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             .then(r => { if (r.ok) return r.json(); throw new Error('no report'); })
             .then(data => { renderReport(data); updateRefreshTime(); })
             .catch(() => {});
+
+        /* Chat functions */
+        function toggleChat() {
+            document.getElementById('chat-panel').classList.toggle('open');
+            if (document.getElementById('chat-panel').classList.contains('open')) {
+                document.getElementById('chat-input').focus();
+            }
+        }
+
+        function renderMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const q = input.value.trim();
+            if (!q) return;
+            input.value = '';
+            const msgs = document.getElementById('chat-messages');
+            msgs.innerHTML += '<div class="chat-msg user">' + q.replace(/</g,'&lt;') + '</div>';
+            msgs.scrollTop = msgs.scrollHeight;
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: q})
+                });
+                const data = await resp.json();
+                msgs.innerHTML += '<div class="chat-msg bot">' + renderMarkdown(data.answer || 'Sorry, something went wrong.') + '</div>';
+            } catch(err) {
+                msgs.innerHTML += '<div class="chat-msg bot">Error: could not get a response. Make sure data is loaded.</div>';
+            }
+            msgs.scrollTop = msgs.scrollHeight;
+        }
     </script>
 </body>
 </html>"""
@@ -407,6 +480,27 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
 
                 except Exception as e:
                     self._json_response(500, {"error": str(e)})
+
+            elif self.path == "/api/chat":
+                try:
+                    content_length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(content_length)
+                    payload = json.loads(body.decode())
+                    question = payload.get("question", "")
+
+                    report_path = output_path / "sales_report.json"
+                    if not report_path.exists():
+                        self._json_response(200, {"answer": "No data loaded yet. Upload a data file first using the **Upload Data** button."})
+                        return
+
+                    with open(report_path) as f:
+                        report = json.load(f)
+
+                    answer = answer_question(question, report)
+                    self._json_response(200, {"answer": answer})
+
+                except Exception as e:
+                    self._json_response(500, {"answer": f"Error: {e}"})
 
             elif self.path == "/api/upload-plan":
                 try:
