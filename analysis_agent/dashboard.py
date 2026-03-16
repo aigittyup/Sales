@@ -21,7 +21,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; }
 
-        .header { background: linear-gradient(135deg, #00843D, #005a28); color: white; padding: 24px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .header { background: linear-gradient(135deg, #00843D, #005a28); color: white; padding: 20px 40px 16px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
         .header-left h1 { font-size: 24px; font-weight: 600; }
         .header-left p { opacity: 0.85; margin-top: 4px; font-size: 14px; }
         .header-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
@@ -31,6 +32,15 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         .header-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.2s; }
         .header-btn:hover { background: rgba(255,255,255,0.35); }
         .last-refresh { font-size: 11px; opacity: 0.75; }
+        .header-prompt { display: flex; justify-content: center; margin-top: 16px; }
+        .header-prompt-row { display: flex; align-items: center; width: 100%; max-width: 600px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 24px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
+        .header-prompt-row:focus-within { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.6); }
+        .header-prompt-row input { flex: 1; background: transparent; border: none; color: white; padding: 10px 18px; font-size: 14px; outline: none; }
+        .header-prompt-row input::placeholder { color: rgba(255,255,255,0.6); }
+        .header-prompt-row button { background: rgba(255,255,255,0.25); border: none; color: white; padding: 8px 18px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
+        .header-prompt-row button:hover { background: rgba(255,255,255,0.4); }
+        .header-chat-response { max-width: 600px; margin: 10px auto 0; background: rgba(255,255,255,0.12); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.5; display: none; color: white; }
+        .header-chat-response.visible { display: block; }
         .status-toast { position: fixed; top: 20px; right: 20px; padding: 10px 20px; border-radius: 6px; font-size: 13px; z-index: 999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .status-toast.success { display: block; background: #d4edda; color: #155724; }
         .status-toast.error { display: block; background: #f8d7da; color: #721c24; }
@@ -86,17 +96,28 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <input type="file" id="plan-input" accept=".csv,.xlsx,.xls" style="display:none">
     <div class="status-toast" id="status-toast"></div>
     <div class="header">
-        <div class="header-left">
-            <h1>Sales Analysis Dashboard</h1>
-            <p id="period"></p>
+        <div class="header-top">
+            <div class="header-left">
+                <h1>Sales Analysis Dashboard</h1>
+                <p id="period"></p>
+            </div>
+            <div class="header-right">
+                <div class="powered-by">POWERED BY <strong>AMPLIFY</strong></div>
+                <div class="header-actions">
+                    <span class="last-refresh" id="last-refresh"></span>
+                    <button class="header-btn" onclick="hardRefresh()">Refresh</button>
+                    <button class="header-btn" onclick="document.getElementById('file-input').click()">Upload Data</button>
+                    <button class="header-btn" onclick="document.getElementById('plan-input').click()">Upload Plan</button>
+                </div>
+            </div>
         </div>
-        <div class="header-right">
-            <div class="powered-by">POWERED BY <strong>AMPLIFY</strong></div>
-            <div class="header-actions">
-                <span class="last-refresh" id="last-refresh"></span>
-                <button class="header-btn" onclick="hardRefresh()">Refresh</button>
-                <button class="header-btn" onclick="document.getElementById('file-input').click()">Upload Data</button>
-                <button class="header-btn" onclick="document.getElementById('plan-input').click()">Upload Plan</button>
+        <div class="header-prompt">
+            <div style="width:100%;max-width:600px;">
+                <div class="header-prompt-row">
+                    <input type="text" id="header-chat-input" placeholder="Ask about your data..." onkeydown="if(event.key==='Enter')sendHeaderChat()">
+                    <button onclick="sendHeaderChat()">Ask</button>
+                </div>
+                <div class="header-chat-response" id="header-chat-response"></div>
             </div>
         </div>
     </div>
@@ -347,6 +368,27 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             return text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\n/g, '<br>');
+        }
+
+        async function sendHeaderChat() {
+            const input = document.getElementById('header-chat-input');
+            const q = input.value.trim();
+            if (!q) return;
+            input.value = '';
+            const responseEl = document.getElementById('header-chat-response');
+            responseEl.classList.add('visible');
+            responseEl.innerHTML = '<em>Thinking...</em>';
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: q})
+                });
+                const data = await resp.json();
+                responseEl.innerHTML = renderMarkdown(data.answer || 'Sorry, something went wrong.');
+            } catch(err) {
+                responseEl.innerHTML = 'Error: could not get a response. Make sure data is loaded.';
+            }
         }
 
         async function sendChat() {
