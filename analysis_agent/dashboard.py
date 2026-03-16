@@ -16,7 +16,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Analysis Dashboard</title>
+    <title>Sales Analysis</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; }
@@ -97,7 +97,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <div class="header">
         <div class="header-top">
             <div class="header-left">
-                <h1>Sales Analysis Dashboard</h1>
+                <h1>Sales Analysis</h1>
                 <p id="period"></p>
             </div>
             <div class="header-right">
@@ -622,7 +622,7 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Sales Analysis Dashboard")
+    parser = argparse.ArgumentParser(description="Sales Analysis")
     parser.add_argument("-o", "--output", default="output", help="Output directory with report data")
     parser.add_argument("-p", "--port", type=int, default=8080, help="Port number (default: 8080)")
     args = parser.parse_args()
