@@ -32,14 +32,13 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         .header-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.2s; }
         .header-btn:hover { background: rgba(255,255,255,0.35); }
         .last-refresh { font-size: 11px; opacity: 0.75; }
-        .header-prompt { display: flex; justify-content: center; margin-top: 16px; }
-        .header-prompt-row { display: flex; align-items: center; width: 100%; max-width: 600px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 24px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
-        .header-prompt-row:focus-within { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.6); }
-        .header-prompt-row input { flex: 1; background: transparent; border: none; color: white; padding: 10px 18px; font-size: 14px; outline: none; }
-        .header-prompt-row input::placeholder { color: rgba(255,255,255,0.6); }
-        .header-prompt-row button { background: rgba(255,255,255,0.25); border: none; color: white; padding: 8px 18px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
-        .header-prompt-row button:hover { background: rgba(255,255,255,0.4); }
-        .header-chat-response { max-width: 600px; margin: 10px auto 0; background: rgba(255,255,255,0.12); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.5; display: none; color: white; }
+        .header-prompt { display: flex; justify-content: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.15); }
+        .header-prompt-row { display: flex; align-items: center; width: 100%; max-width: 600px; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .header-prompt-row input { flex: 1; background: white; border: none; color: #333; padding: 12px 20px; font-size: 15px; outline: none; border-radius: 24px 0 0 24px; }
+        .header-prompt-row input::placeholder { color: #999; }
+        .header-prompt-row button { background: #005a28; border: none; color: white; padding: 12px 24px; cursor: pointer; font-size: 14px; font-weight: 600; letter-spacing: 0.3px; }
+        .header-prompt-row button:hover { background: #004020; }
+        .header-chat-response { max-width: 600px; margin: 10px auto 0; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.6; display: none; color: white; }
         .header-chat-response.visible { display: block; }
         .status-toast { position: fixed; top: 20px; right: 20px; padding: 10px 20px; border-radius: 6px; font-size: 13px; z-index: 999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .status-toast.success { display: block; background: #d4edda; color: #155724; }
@@ -428,6 +427,7 @@ def serve_dashboard(output_dir: str = "output", port: int = 8080):
             if self.path == "/" or self.path == "/index.html":
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
+                self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 self.end_headers()
                 self.wfile.write(DASHBOARD_HTML.encode())
             elif self.path == "/api/report":
