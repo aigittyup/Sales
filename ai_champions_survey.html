@@ -308,7 +308,7 @@
   <!-- Progress -->
   <div class="progress-wrap">
     <div class="progress-meta">
-      <span id="progress-label">Section 1 of 6</span>
+      <span id="progress-label">Section 1 of 7</span>
       <span id="progress-pct">0%</span>
     </div>
     <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
@@ -331,12 +331,6 @@
       </div>
 
       <div class="field">
-        <label class="field-label" for="email">Work Email <span class="required-star">*</span></label>
-        <input type="email" id="email" name="email" placeholder="jane.smith@company.com" required />
-        <div class="field-error" id="err-email">Please enter a valid email address.</div>
-      </div>
-
-      <div class="field">
         <label class="field-label" for="department">Department / Business Unit <span class="required-star">*</span></label>
         <select id="department" name="department" required>
           <option value="">— Select department —</option>
@@ -355,20 +349,68 @@
         <div class="field-error" id="err-department">Please select a department.</div>
       </div>
 
+    </div>
+
+    <!-- ── Section 2: Use Case ── -->
+    <div class="section" data-section="2">
+      <div class="section-header">
+        <div class="section-icon">🔬</div>
+        <div class="section-title">Your Use Case</div>
+      </div>
+
       <div class="field">
-        <label class="field-label" for="tenure-champion">How long have you been an AI Champion?</label>
-        <select id="tenure-champion" name="tenure_champion">
-          <option value="">— Select —</option>
-          <option>Less than 3 months</option>
-          <option>3–6 months</option>
-          <option>6–12 months</option>
-          <option>1–2 years</option>
-          <option>More than 2 years</option>
-        </select>
+        <label class="field-label" for="use-case-name">Use case name / title <span class="required-star">*</span></label>
+        <input type="text" id="use-case-name" name="use_case_name" placeholder="e.g., Automated sales call summaries" required />
+        <div class="field-error" id="err-use-case-name">Please enter a use case name.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="use-case-description">Describe the use case</label>
+        <div class="field-hint">What problem does it solve? How does AI help? Who benefits?</div>
+        <textarea id="use-case-description" name="use_case_description" placeholder="e.g., We use an AI assistant to automatically transcribe and summarise weekly sales calls, saving each rep ~2 hours per week and ensuring consistent follow-up notes…"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label">What is the current status of this use case?</label>
+        <div class="radio-list">
+          <label class="radio-item"><input type="radio" name="use_case_status" value="idea" /><span>Idea / concept stage</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_status" value="building" /><span>Actively building / prototyping</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_status" value="piloting" /><span>Piloting with a small group</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_status" value="live" /><span>Live and in regular use</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_status" value="scaled" /><span>Scaled across the team / org</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_status" value="paused" /><span>Paused or discontinued</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Which AI tools or platforms are you using for this use case? <span class="field-hint">(Select all that apply)</span></label>
+        <div class="check-list">
+          <label class="check-item"><input type="checkbox" name="ai_tools" value="copilot" /><span>Microsoft Copilot / Copilot 365</span></label>
+          <label class="check-item"><input type="checkbox" name="ai_tools" value="chatgpt" /><span>ChatGPT / OpenAI</span></label>
+          <label class="check-item"><input type="checkbox" name="ai_tools" value="claude" /><span>Claude (Anthropic)</span></label>
+          <label class="check-item"><input type="checkbox" name="ai_tools" value="gemini" /><span>Google Gemini</span></label>
+          <label class="check-item"><input type="checkbox" name="ai_tools" value="internal" /><span>Internal / proprietary AI platform</span></label>
+          <label class="check-item"><input type="checkbox" name="ai_tools" value="other_tool" /><span>Other</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="use-case-impact">What measurable impact has this use case had, or do you expect it to have?</label>
+        <textarea id="use-case-impact" name="use_case_impact" placeholder="e.g., Estimated 3 hrs/week saved per rep, 20% reduction in follow-up errors, improved customer satisfaction scores…"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="use-case-challenges">What are the biggest challenges you have faced with this use case?</label>
+        <textarea id="use-case-challenges" name="use_case_challenges" placeholder="e.g., Data privacy concerns, getting team buy-in, output quality, integration with existing systems…"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="use-case-support">What support from the program would help you move this use case forward?</label>
+        <textarea id="use-case-support" name="use_case_support" placeholder="e.g., Technical help with prompting, access to a sandbox environment, an exec sponsor, connection to someone who has done something similar…"></textarea>
       </div>
     </div>
 
-    <!-- ── Section 2: Overall Program Satisfaction ── -->
+    <!-- ── Section 3: Overall Program Satisfaction ── -->
     <div class="section" data-section="2">
       <div class="section-header">
         <div class="section-icon">⭐</div>
@@ -667,7 +709,7 @@
 
 <script>
   /* ── Progress tracking ── */
-  const TOTAL_SECTIONS = 6;
+  const TOTAL_SECTIONS = 7;
 
   function updateProgress() {
     const sections = document.querySelectorAll('.section');
@@ -739,16 +781,15 @@
     if (!name.value.trim()) { showError('err-full-name', 'Please enter your name.'); markInput(name, true); }
     else { clearError('err-full-name'); markInput(name, false); }
 
-    // Email
-    const email = document.getElementById('email');
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
-    if (!emailOk) { showError('err-email', 'Please enter a valid email address.'); markInput(email, true); }
-    else { clearError('err-email'); markInput(email, false); }
-
     // Department
     const dept = document.getElementById('department');
     if (!dept.value) { showError('err-department', 'Please select a department.'); markInput(dept, true); }
     else { clearError('err-department'); markInput(dept, false); }
+
+    // Use case name
+    const useCaseName = document.getElementById('use-case-name');
+    if (!useCaseName.value.trim()) { showError('err-use-case-name', 'Please enter a use case name.'); markInput(useCaseName, true); }
+    else { clearError('err-use-case-name'); markInput(useCaseName, false); }
 
     // Star rating
     if (!document.querySelector('input[name="overall_satisfaction"]:checked')) {
