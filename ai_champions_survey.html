@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Champions Program – Feedback Survey</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:    #4f46e5;
+      --brand-lt: #eef2ff;
+      --accent:   #7c3aed;
+      --text:     #1e293b;
+      --muted:    #64748b;
+      --border:   #e2e8f0;
+      --bg:       #f8fafc;
+      --card:     #ffffff;
+      --error:    #dc2626;
+      --success:  #16a34a;
+      --radius:   10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* ── Layout ── */
+    .survey-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* ── Hero header ── */
+    .hero {
+      background: linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%);
+      border-radius: var(--radius);
+      color: #fff;
+      padding: 2.5rem 2rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .hero-tag {
+      display: inline-block;
+      background: rgba(255,255,255,.2);
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: .25rem .75rem;
+      margin-bottom: .9rem;
+    }
+    .hero h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.25; margin-bottom: .6rem; }
+    .hero p  { font-size: .95rem; opacity: .88; line-height: 1.6; }
+
+    /* ── Progress bar ── */
+    .progress-wrap { margin-bottom: 1.5rem; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: .8rem;
+      color: var(--muted);
+      margin-bottom: .4rem;
+    }
+    .progress-track {
+      background: var(--border);
+      border-radius: 999px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      background: linear-gradient(90deg, var(--brand), var(--accent));
+      height: 100%;
+      border-radius: 999px;
+      transition: width .4s ease;
+      width: 0%;
+    }
+
+    /* ── Section card ── */
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 1.75rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      margin-bottom: 1.35rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 2rem; height: 2rem;
+      background: var(--brand-lt);
+      color: var(--brand);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .section-title { font-size: 1rem; font-weight: 600; color: var(--text); }
+
+    /* ── Field ── */
+    .field { margin-bottom: 1.4rem; }
+    .field:last-child { margin-bottom: 0; }
+
+    label.field-label {
+      display: block;
+      font-size: .875rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: .5rem;
+      line-height: 1.4;
+    }
+    .required-star { color: var(--error); margin-left: .15em; }
+    .field-hint { font-size: .78rem; color: var(--muted); margin-bottom: .5rem; }
+
+    /* ── Native inputs ── */
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: .9rem;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .6rem .85rem;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    select { cursor: pointer; }
+
+    /* ── Star rating ── */
+    .star-group { display: flex; flex-direction: row-reverse; gap: .2rem; width: fit-content; }
+    .star-group input { display: none; }
+    .star-group label {
+      font-size: 1.6rem;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: color .15s, transform .15s;
+    }
+    .star-group input:checked ~ label,
+    .star-group label:hover,
+    .star-group label:hover ~ label {
+      color: #f59e0b;
+    }
+    .star-group label:hover { transform: scale(1.15); }
+
+    /* ── Likert / radio scale ── */
+    .likert-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+    .likert-wrap input[type="radio"] { display: none; }
+    .likert-wrap label {
+      flex: 1;
+      min-width: 3rem;
+      text-align: center;
+      padding: .5rem .4rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: .8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      color: var(--muted);
+    }
+    .likert-wrap input[type="radio"]:checked + label {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    .likert-wrap label:hover { border-color: var(--brand); color: var(--brand); }
+    .likert-ends {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: .3rem;
+    }
+
+    /* ── Checkbox list ── */
+    .check-list { display: flex; flex-direction: column; gap: .5rem; }
+    .check-item { display: flex; align-items: flex-start; gap: .55rem; cursor: pointer; }
+    .check-item input[type="checkbox"] { margin-top: .15rem; accent-color: var(--brand); width: 1rem; height: 1rem; cursor: pointer; }
+    .check-item span { font-size: .875rem; color: var(--text); line-height: 1.4; }
+
+    /* ── Radio list ── */
+    .radio-list { display: flex; flex-direction: column; gap: .55rem; }
+    .radio-item { display: flex; align-items: flex-start; gap: .55rem; cursor: pointer; }
+    .radio-item input[type="radio"] { margin-top: .2rem; accent-color: var(--brand); width: 1rem; height: 1rem; cursor: pointer; }
+    .radio-item span { font-size: .875rem; color: var(--text); line-height: 1.4; }
+
+    /* ── NPS ── */
+    .nps-row {
+      display: flex;
+      gap: .3rem;
+      flex-wrap: wrap;
+    }
+    .nps-row input[type="radio"] { display: none; }
+    .nps-row label {
+      width: 2.4rem;
+      height: 2.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      color: var(--muted);
+    }
+    .nps-row input[type="radio"]:checked + label { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .nps-row label:hover { border-color: var(--brand); color: var(--brand); }
+    .nps-ends { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: .4rem; }
+
+    /* ── Submit button ── */
+    .submit-section { text-align: center; margin-top: 1.5rem; }
+    .btn-submit {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: .85rem 2.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+      box-shadow: 0 4px 14px rgba(79,70,229,.35);
+    }
+    .btn-submit:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit svg { width: 18px; height: 18px; }
+
+    .form-note {
+      margin-top: .85rem;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+
+    /* ── Success state ── */
+    #success-message {
+      display: none;
+      background: var(--card);
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius);
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+    .success-icon {
+      width: 4rem; height: 4rem;
+      background: #dcfce7;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.25rem;
+      font-size: 1.75rem;
+    }
+    #success-message h2 { font-size: 1.4rem; color: var(--success); margin-bottom: .5rem; }
+    #success-message p  { color: var(--muted); font-size: .9rem; }
+
+    /* ── Validation error ── */
+    .field-error { color: var(--error); font-size: .78rem; margin-top: .35rem; display: none; }
+    .field-error.visible { display: block; }
+    .input-error { border-color: var(--error) !important; }
+
+    @media (max-width: 540px) {
+      .section { padding: 1.25rem 1rem; }
+      .hero { padding: 2rem 1.25rem 1.5rem; }
+      .hero h1 { font-size: 1.4rem; }
+      .nps-row label { width: 2rem; height: 2rem; font-size: .75rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="survey-wrap">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-tag">AI Champions Program</div>
+    <h1>Program Feedback Survey</h1>
+    <p>Your insights help us continuously improve the AI Champions Program. This survey takes approximately 8–10 minutes to complete. Responses are confidential and reviewed quarterly.</p>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">Section 1 of 6</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+  </div>
+
+  <!-- Survey form -->
+  <form id="survey-form" novalidate>
+
+    <!-- ── Section 1: Respondent Info ── -->
+    <div class="section" data-section="1">
+      <div class="section-header">
+        <div class="section-icon">👤</div>
+        <div class="section-title">About You</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="full-name">Full Name <span class="required-star">*</span></label>
+        <input type="text" id="full-name" name="full_name" placeholder="Jane Smith" required />
+        <div class="field-error" id="err-full-name">Please enter your name.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email">Work Email <span class="required-star">*</span></label>
+        <input type="email" id="email" name="email" placeholder="jane.smith@company.com" required />
+        <div class="field-error" id="err-email">Please enter a valid email address.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="department">Department / Business Unit <span class="required-star">*</span></label>
+        <select id="department" name="department" required>
+          <option value="">— Select department —</option>
+          <option>Sales</option>
+          <option>Marketing</option>
+          <option>Operations</option>
+          <option>Finance</option>
+          <option>Human Resources</option>
+          <option>Information Technology</option>
+          <option>Customer Success</option>
+          <option>Product</option>
+          <option>Legal &amp; Compliance</option>
+          <option>Research &amp; Development</option>
+          <option>Other</option>
+        </select>
+        <div class="field-error" id="err-department">Please select a department.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="tenure-champion">How long have you been an AI Champion?</label>
+        <select id="tenure-champion" name="tenure_champion">
+          <option value="">— Select —</option>
+          <option>Less than 3 months</option>
+          <option>3–6 months</option>
+          <option>6–12 months</option>
+          <option>1–2 years</option>
+          <option>More than 2 years</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ── Section 2: Overall Program Satisfaction ── -->
+    <div class="section" data-section="2">
+      <div class="section-header">
+        <div class="section-icon">⭐</div>
+        <div class="section-title">Overall Program Satisfaction</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Overall, how satisfied are you with the AI Champions Program? <span class="required-star">*</span></label>
+        <div class="star-group" id="overall-satisfaction">
+          <input type="radio" name="overall_satisfaction" id="star5" value="5" required />
+          <label for="star5" title="5 – Extremely satisfied">&#9733;</label>
+          <input type="radio" name="overall_satisfaction" id="star4" value="4" />
+          <label for="star4" title="4 – Very satisfied">&#9733;</label>
+          <input type="radio" name="overall_satisfaction" id="star3" value="3" />
+          <label for="star3" title="3 – Satisfied">&#9733;</label>
+          <input type="radio" name="overall_satisfaction" id="star2" value="2" />
+          <label for="star2" title="2 – Dissatisfied">&#9733;</label>
+          <input type="radio" name="overall_satisfaction" id="star1" value="1" />
+          <label for="star1" title="1 – Very dissatisfied">&#9733;</label>
+        </div>
+        <div class="field-error" id="err-overall-satisfaction">Please provide a rating.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How clear are the goals and objectives of the AI Champions Program?</label>
+        <div class="likert-wrap">
+          <input type="radio" name="goals_clarity" id="gc1" value="1" /><label for="gc1">1</label>
+          <input type="radio" name="goals_clarity" id="gc2" value="2" /><label for="gc2">2</label>
+          <input type="radio" name="goals_clarity" id="gc3" value="3" /><label for="gc3">3</label>
+          <input type="radio" name="goals_clarity" id="gc4" value="4" /><label for="gc4">4</label>
+          <input type="radio" name="goals_clarity" id="gc5" value="5" /><label for="gc5">5</label>
+        </div>
+        <div class="likert-ends"><span>Not clear at all</span><span>Extremely clear</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How valued do you feel as an AI Champion within your organization?</label>
+        <div class="likert-wrap">
+          <input type="radio" name="feel_valued" id="fv1" value="1" /><label for="fv1">1</label>
+          <input type="radio" name="feel_valued" id="fv2" value="2" /><label for="fv2">2</label>
+          <input type="radio" name="feel_valued" id="fv3" value="3" /><label for="fv3">3</label>
+          <input type="radio" name="feel_valued" id="fv4" value="4" /><label for="fv4">4</label>
+          <input type="radio" name="feel_valued" id="fv5" value="5" /><label for="fv5">5</label>
+        </div>
+        <div class="likert-ends"><span>Not at all valued</span><span>Extremely valued</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">What aspects of the program do you find most valuable? <span class="field-hint">(Select all that apply)</span></label>
+        <div class="check-list">
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="training" /><span>Training &amp; learning resources</span></label>
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="networking" /><span>Networking with other champions</span></label>
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="tools_access" /><span>Early access to AI tools</span></label>
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="leadership_visibility" /><span>Visibility with leadership</span></label>
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="impact" /><span>Making a real impact in my team</span></label>
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="career_development" /><span>Career development &amp; recognition</span></label>
+          <label class="check-item"><input type="checkbox" name="valuable_aspects" value="community" /><span>Belonging to a community</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 3: Training & Resources ── -->
+    <div class="section" data-section="3">
+      <div class="section-header">
+        <div class="section-icon">📚</div>
+        <div class="section-title">Training &amp; Resources</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How would you rate the quality of training materials provided? <span class="required-star">*</span></label>
+        <div class="likert-wrap">
+          <input type="radio" name="training_quality" id="tq1" value="1" required /><label for="tq1">1</label>
+          <input type="radio" name="training_quality" id="tq2" value="2" /><label for="tq2">2</label>
+          <input type="radio" name="training_quality" id="tq3" value="3" /><label for="tq3">3</label>
+          <input type="radio" name="training_quality" id="tq4" value="4" /><label for="tq4">4</label>
+          <input type="radio" name="training_quality" id="tq5" value="5" /><label for="tq5">5</label>
+        </div>
+        <div class="likert-ends"><span>Very poor</span><span>Excellent</span></div>
+        <div class="field-error" id="err-training-quality">Please provide a rating.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How adequate is the time allocated for AI champion activities alongside your regular role?</label>
+        <div class="radio-list">
+          <label class="radio-item"><input type="radio" name="time_adequacy" value="insufficient" /><span>Insufficient — I struggle to balance both</span></label>
+          <label class="radio-item"><input type="radio" name="time_adequacy" value="somewhat" /><span>Somewhat adequate — occasional challenges</span></label>
+          <label class="radio-item"><input type="radio" name="time_adequacy" value="adequate" /><span>Adequate — I manage well</span></label>
+          <label class="radio-item"><input type="radio" name="time_adequacy" value="more_than_enough" /><span>More than enough</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Which training formats do you prefer? <span class="field-hint">(Select all that apply)</span></label>
+        <div class="check-list">
+          <label class="check-item"><input type="checkbox" name="training_formats" value="live_workshops" /><span>Live workshops / instructor-led sessions</span></label>
+          <label class="check-item"><input type="checkbox" name="training_formats" value="on_demand" /><span>On-demand video courses</span></label>
+          <label class="check-item"><input type="checkbox" name="training_formats" value="written_guides" /><span>Written guides &amp; documentation</span></label>
+          <label class="check-item"><input type="checkbox" name="training_formats" value="hands_on_labs" /><span>Hands-on labs &amp; sandbox environments</span></label>
+          <label class="check-item"><input type="checkbox" name="training_formats" value="peer_learning" /><span>Peer learning &amp; knowledge sharing sessions</span></label>
+          <label class="check-item"><input type="checkbox" name="training_formats" value="coaching" /><span>1-on-1 coaching or mentorship</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">What topic areas would you like more training on?</label>
+        <textarea name="training_gaps" placeholder="e.g., Prompt engineering, AI governance, use-case development, change management…"></textarea>
+      </div>
+    </div>
+
+    <!-- ── Section 4: Community & Support ── -->
+    <div class="section" data-section="4">
+      <div class="section-header">
+        <div class="section-icon">🤝</div>
+        <div class="section-title">Community &amp; Support</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How well supported do you feel by the program leadership team?</label>
+        <div class="likert-wrap">
+          <input type="radio" name="leadership_support" id="ls1" value="1" /><label for="ls1">1</label>
+          <input type="radio" name="leadership_support" id="ls2" value="2" /><label for="ls2">2</label>
+          <input type="radio" name="leadership_support" id="ls3" value="3" /><label for="ls3">3</label>
+          <input type="radio" name="leadership_support" id="ls4" value="4" /><label for="ls4">4</label>
+          <input type="radio" name="leadership_support" id="ls5" value="5" /><label for="ls5">5</label>
+        </div>
+        <div class="likert-ends"><span>Not supported</span><span>Fully supported</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How often do you engage with other AI Champions?</label>
+        <div class="radio-list">
+          <label class="radio-item"><input type="radio" name="community_engagement" value="daily" /><span>Daily</span></label>
+          <label class="radio-item"><input type="radio" name="community_engagement" value="weekly" /><span>Weekly</span></label>
+          <label class="radio-item"><input type="radio" name="community_engagement" value="monthly" /><span>Monthly</span></label>
+          <label class="radio-item"><input type="radio" name="community_engagement" value="rarely" /><span>Rarely</span></label>
+          <label class="radio-item"><input type="radio" name="community_engagement" value="never" /><span>Never — no easy way to connect</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How effective are current communication channels (Slack, Teams, newsletters, etc.) for the champion community?</label>
+        <div class="likert-wrap">
+          <input type="radio" name="comms_effectiveness" id="ce1" value="1" /><label for="ce1">1</label>
+          <input type="radio" name="comms_effectiveness" id="ce2" value="2" /><label for="ce2">2</label>
+          <input type="radio" name="comms_effectiveness" id="ce3" value="3" /><label for="ce3">3</label>
+          <input type="radio" name="comms_effectiveness" id="ce4" value="4" /><label for="ce4">4</label>
+          <input type="radio" name="comms_effectiveness" id="ce5" value="5" /><label for="ce5">5</label>
+        </div>
+        <div class="likert-ends"><span>Very ineffective</span><span>Very effective</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">What barriers do you face in driving AI adoption within your team? <span class="field-hint">(Select all that apply)</span></label>
+        <div class="check-list">
+          <label class="check-item"><input type="checkbox" name="barriers" value="resistance" /><span>Team resistance to change</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="time" /><span>Lack of time</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="skills" /><span>Insufficient technical skills</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="tools" /><span>Limited access to AI tools</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="policy" /><span>Unclear policies / governance</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="budget" /><span>Budget constraints</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="use_cases" /><span>Difficulty identifying relevant use cases</span></label>
+          <label class="check-item"><input type="checkbox" name="barriers" value="none" /><span>No significant barriers</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 5: Impact & Outcomes ── -->
+    <div class="section" data-section="5">
+      <div class="section-header">
+        <div class="section-icon">🚀</div>
+        <div class="section-title">Impact &amp; Outcomes</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How much has your participation as an AI Champion improved AI adoption in your team?</label>
+        <div class="likert-wrap">
+          <input type="radio" name="adoption_impact" id="ai1" value="1" /><label for="ai1">1</label>
+          <input type="radio" name="adoption_impact" id="ai2" value="2" /><label for="ai2">2</label>
+          <input type="radio" name="adoption_impact" id="ai3" value="3" /><label for="ai3">3</label>
+          <input type="radio" name="adoption_impact" id="ai4" value="4" /><label for="ai4">4</label>
+          <input type="radio" name="adoption_impact" id="ai5" value="5" /><label for="ai5">5</label>
+        </div>
+        <div class="likert-ends"><span>No improvement</span><span>Significant improvement</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Have you successfully implemented an AI use case or pilot in your team?</label>
+        <div class="radio-list">
+          <label class="radio-item"><input type="radio" name="use_case_implemented" value="yes_multiple" /><span>Yes — multiple use cases</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_implemented" value="yes_one" /><span>Yes — at least one use case</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_implemented" value="in_progress" /><span>In progress — currently piloting</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_implemented" value="no_identified" /><span>Not yet — but I have ideas</span></label>
+          <label class="radio-item"><input type="radio" name="use_case_implemented" value="no" /><span>No</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Please describe a specific outcome or win you can attribute to the program.</label>
+        <div class="field-hint">Even small wins count — share anything that moved the needle.</div>
+        <textarea name="specific_outcome" placeholder="e.g., Automated weekly reporting, saving 3 hours per week. Team now uses AI for first-draft emails…"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How has being an AI Champion affected your own professional development?</label>
+        <div class="likert-wrap">
+          <input type="radio" name="personal_development" id="pd1" value="1" /><label for="pd1">1</label>
+          <input type="radio" name="personal_development" id="pd2" value="2" /><label for="pd2">2</label>
+          <input type="radio" name="personal_development" id="pd3" value="3" /><label for="pd3">3</label>
+          <input type="radio" name="personal_development" id="pd4" value="4" /><label for="pd4">4</label>
+          <input type="radio" name="personal_development" id="pd5" value="5" /><label for="pd5">5</label>
+        </div>
+        <div class="likert-ends"><span>No positive impact</span><span>Transformative impact</span></div>
+      </div>
+    </div>
+
+    <!-- ── Section 6: Recommendations & NPS ── -->
+    <div class="section" data-section="6">
+      <div class="section-header">
+        <div class="section-icon">💡</div>
+        <div class="section-title">Recommendations &amp; Looking Ahead</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">On a scale of 0–10, how likely are you to recommend the AI Champions Program to a colleague? <span class="required-star">*</span></label>
+        <div class="nps-row" id="nps-group">
+          <input type="radio" name="nps" id="nps0" value="0" required /><label for="nps0">0</label>
+          <input type="radio" name="nps" id="nps1" value="1" /><label for="nps1">1</label>
+          <input type="radio" name="nps" id="nps2" value="2" /><label for="nps2">2</label>
+          <input type="radio" name="nps" id="nps3" value="3" /><label for="nps3">3</label>
+          <input type="radio" name="nps" id="nps4" value="4" /><label for="nps4">4</label>
+          <input type="radio" name="nps" id="nps5" value="5" /><label for="nps5">5</label>
+          <input type="radio" name="nps" id="nps6" value="6" /><label for="nps6">6</label>
+          <input type="radio" name="nps" id="nps7" value="7" /><label for="nps7">7</label>
+          <input type="radio" name="nps" id="nps8" value="8" /><label for="nps8">8</label>
+          <input type="radio" name="nps" id="nps9" value="9" /><label for="nps9">9</label>
+          <input type="radio" name="nps" id="nps10" value="10" /><label for="nps10">10</label>
+        </div>
+        <div class="nps-ends"><span>0 – Not at all likely</span><span>10 – Extremely likely</span></div>
+        <div class="field-error" id="err-nps">Please select a score.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">What is the single biggest improvement you would make to the program?</label>
+        <textarea name="top_improvement" placeholder="Be as specific as possible — this is the most actionable question in the survey…"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label">How would you prioritize the following areas for program investment? <span class="field-hint">(Select your top 3)</span></label>
+        <div class="check-list" id="priority-list">
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="more_tools" /><span>More / better AI tools &amp; licenses</span></label>
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="advanced_training" /><span>Advanced training &amp; certification support</span></label>
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="dedicated_time" /><span>Dedicated time allocation for champion activities</span></label>
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="events" /><span>In-person events &amp; summits</span></label>
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="recognition" /><span>Recognition &amp; reward programs</span></label>
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="exec_sponsorship" /><span>Stronger executive sponsorship</span></label>
+          <label class="check-item"><input type="checkbox" name="investment_priority" value="use_case_library" /><span>Shared use-case library &amp; templates</span></label>
+        </div>
+        <div class="field-error" id="err-priority">Please select up to 3 priorities.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Do you plan to continue as an AI Champion for the next 12 months?</label>
+        <div class="radio-list">
+          <label class="radio-item"><input type="radio" name="continue_intent" value="yes_definitely" /><span>Yes, definitely</span></label>
+          <label class="radio-item"><input type="radio" name="continue_intent" value="yes_likely" /><span>Yes, most likely</span></label>
+          <label class="radio-item"><input type="radio" name="continue_intent" value="unsure" /><span>Unsure</span></label>
+          <label class="radio-item"><input type="radio" name="continue_intent" value="no" /><span>No — I'm considering stepping down</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Any other comments or suggestions?</label>
+        <textarea name="other_comments" placeholder="Anything else you'd like the program team to know…"></textarea>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="submit-section">
+      <button type="submit" class="btn-submit">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+        Submit Feedback
+      </button>
+      <p class="form-note">Fields marked <span style="color:var(--error)">*</span> are required. All other responses are optional.</p>
+    </div>
+
+  </form>
+
+  <!-- Success -->
+  <div id="success-message">
+    <div class="success-icon">✅</div>
+    <h2>Thank you for your feedback!</h2>
+    <p>Your responses have been recorded. The program team will review all submissions and share a summary with champions each quarter.</p>
+  </div>
+
+</div>
+
+<script>
+  /* ── Progress tracking ── */
+  const TOTAL_SECTIONS = 6;
+
+  function updateProgress() {
+    const sections = document.querySelectorAll('.section');
+    let answered = 0;
+    sections.forEach((sec, i) => {
+      const inputs = sec.querySelectorAll('input[required], select[required]');
+      const allAnswered = [...inputs].every(inp => {
+        if (inp.type === 'radio') {
+          return document.querySelector(`input[name="${inp.name}"]:checked`);
+        }
+        return inp.value.trim() !== '';
+      });
+      // also count sections with any interaction
+      const anyInput = sec.querySelectorAll('input:checked, select:not([value=""]), textarea');
+      let hasAny = false;
+      anyInput.forEach(el => {
+        if (el.tagName === 'SELECT' && el.value) hasAny = true;
+        if (el.tagName === 'INPUT') hasAny = true;
+        if (el.tagName === 'TEXTAREA' && el.value.trim()) hasAny = true;
+      });
+      if (hasAny) answered = i + 1;
+    });
+
+    const pct = Math.round((answered / TOTAL_SECTIONS) * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-label').textContent =
+      `Section ${Math.min(answered + 1, TOTAL_SECTIONS)} of ${TOTAL_SECTIONS}`;
+  }
+
+  document.getElementById('survey-form').addEventListener('change', updateProgress);
+  document.getElementById('survey-form').addEventListener('input', updateProgress);
+
+  /* ── Priority checkbox cap (max 3) ── */
+  document.querySelectorAll('#priority-list input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const checked = document.querySelectorAll('#priority-list input:checked');
+      const errEl = document.getElementById('err-priority');
+      if (checked.length > 3) {
+        cb.checked = false;
+        errEl.textContent = 'Please select up to 3 priorities.';
+        errEl.classList.add('visible');
+      } else {
+        errEl.classList.remove('visible');
+      }
+    });
+  });
+
+  /* ── Form validation & submission ── */
+  document.getElementById('survey-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    let valid = true;
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.add('visible'); }
+      valid = false;
+    }
+    function clearError(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('visible');
+    }
+    function markInput(el, hasError) {
+      el.classList.toggle('input-error', hasError);
+    }
+
+    // Name
+    const name = document.getElementById('full-name');
+    if (!name.value.trim()) { showError('err-full-name', 'Please enter your name.'); markInput(name, true); }
+    else { clearError('err-full-name'); markInput(name, false); }
+
+    // Email
+    const email = document.getElementById('email');
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
+    if (!emailOk) { showError('err-email', 'Please enter a valid email address.'); markInput(email, true); }
+    else { clearError('err-email'); markInput(email, false); }
+
+    // Department
+    const dept = document.getElementById('department');
+    if (!dept.value) { showError('err-department', 'Please select a department.'); markInput(dept, true); }
+    else { clearError('err-department'); markInput(dept, false); }
+
+    // Star rating
+    if (!document.querySelector('input[name="overall_satisfaction"]:checked')) {
+      showError('err-overall-satisfaction', 'Please provide a rating.');
+    } else { clearError('err-overall-satisfaction'); }
+
+    // Training quality
+    if (!document.querySelector('input[name="training_quality"]:checked')) {
+      showError('err-training-quality', 'Please provide a rating.');
+    } else { clearError('err-training-quality'); }
+
+    // NPS
+    if (!document.querySelector('input[name="nps"]:checked')) {
+      showError('err-nps', 'Please select a score.');
+    } else { clearError('err-nps'); }
+
+    if (!valid) {
+      // scroll to first error
+      const firstErr = document.querySelector('.field-error.visible');
+      if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    // Collect data
+    const data = new FormData(this);
+    const result = {};
+    for (const [key, value] of data.entries()) {
+      if (result[key]) {
+        result[key] = Array.isArray(result[key]) ? [...result[key], value] : [result[key], value];
+      } else {
+        result[key] = value;
+      }
+    }
+
+    console.log('Survey submission:', result);
+
+    // Show success
+    document.getElementById('survey-form').style.display = 'none';
+    const successEl = document.getElementById('success-message');
+    successEl.style.display = 'block';
+    successEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Update progress to 100%
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-pct').textContent = '100%';
+    document.getElementById('progress-label').textContent = 'Complete';
+  });
+</script>
+</body>
+</html>
